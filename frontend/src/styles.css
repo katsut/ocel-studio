@@ -325,6 +325,38 @@ th.num {
 .flow-scroll {
   overflow: auto;
   max-height: 640px;
+  position: relative;
+}
+
+.flow-hover {
+  cursor: pointer;
+}
+
+.flow-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14px;
+}
+
+.flow-tip {
+  position: absolute;
+  z-index: 10;
+  max-width: 320px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+  pointer-events: none;
+  line-height: 1.55;
+}
+
+.flow-tip-title {
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 3px;
 }
 
 .flow-node {
