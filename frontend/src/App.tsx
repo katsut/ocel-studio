@@ -7,6 +7,7 @@ import {
   fetchSummary,
   type CaseFilter,
   type EventsPage,
+  type Range,
   type Summary,
   type TypeCount,
 } from "./api.ts";
@@ -148,14 +149,15 @@ function Dashboard({
   const [screen, setScreen] = useState<Screen>("overview");
   const [chosenType, setChosenType] = useState<string>("");
   const [caseFilter, setCaseFilter] = useState<CaseFilter | null>(null);
+  const [range, setRange] = useState<Range | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [page, setPage] = useState<EventsPage | null>(null);
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async (at: number) => {
+  const refresh = useCallback(async (at: number, r: Range | null) => {
     try {
-      const [s, p] = await Promise.all([fetchSummary(), fetchEvents(at, PAGE_SIZE)]);
+      const [s, p] = await Promise.all([fetchSummary(r), fetchEvents(at, PAGE_SIZE, r)]);
       setSummary(s);
       setPage(p);
       setError(null);
@@ -165,8 +167,8 @@ function Dashboard({
   }, []);
 
   useEffect(() => {
-    void refresh(offset);
-  }, [refresh, offset]);
+    void refresh(offset, range);
+  }, [refresh, offset, range]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -174,13 +176,13 @@ function Dashboard({
         .then((status) => {
           if (summary && status.modified !== summary.modified) {
             clearApiCache();
-            void refresh(offset);
+            void refresh(offset, range);
           }
         })
         .catch(() => setError(t.serverUnreachable));
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [summary, offset, refresh, t]);
+  }, [summary, offset, range, refresh, t]);
 
   const fileName = summary ? (summary.path.split("/").pop() ?? summary.path) : "";
   const preferred = summary ? (caseLikeType(summary.typeStats) ?? "") : "";
@@ -223,6 +225,24 @@ function Dashboard({
                 </option>
               ))}
             </select>
+            <span className="header-range" title={`${t.rangeTitle} — ${t.rangeNote}`}>
+              <input
+                type="date"
+                value={range?.from ?? ""}
+                onChange={(e) => setRange({ from: e.target.value, to: range?.to ?? "" })}
+              />
+              <span className="muted">–</span>
+              <input
+                type="date"
+                value={range?.to ?? ""}
+                onChange={(e) => setRange({ from: range?.from ?? "", to: e.target.value })}
+              />
+              {range ? (
+                <button className="link-button" onClick={() => setRange(null)}>
+                  ✕
+                </button>
+              ) : null}
+            </span>
           </>
         ) : null}
         <span className="controls">
@@ -286,7 +306,7 @@ function Dashboard({
                   <span className="meta-updated">{t.updated(formatTime(summary.modified, lang))}</span>
                 </p>
                 {objectType !== "" ? (
-                  <Insights objectType={objectType} modified={summary.modified} onNavigate={setScreen} />
+                  <Insights objectType={objectType} range={range} modified={summary.modified} onNavigate={setScreen} />
                 ) : null}
                 {summary.violations.length > 0 ? (
                   <details className="panel violations">
@@ -307,6 +327,7 @@ function Dashboard({
             {screen === "map" && objectType !== "" ? (
               <FlowPanel
                 objectType={objectType}
+                range={range}
                 modified={summary.modified}
                 onShowCases={(from, to) => {
                   setCaseFilter({ kind: "edge", from, to });
@@ -317,6 +338,7 @@ function Dashboard({
             {screen === "paths" && objectType !== "" ? (
               <VariantsPanel
                 objectType={objectType}
+                range={range}
                 modified={summary.modified}
                 onShowCases={(activities) => {
                   setCaseFilter({ kind: "variant", activities });
@@ -327,6 +349,7 @@ function Dashboard({
             {screen === "cases" && objectType !== "" ? (
               <CasesPanel
                 objectType={objectType}
+                range={range}
                 modified={summary.modified}
                 lang={lang}
                 filter={caseFilter}
@@ -334,7 +357,7 @@ function Dashboard({
               />
             ) : null}
             {screen === "model" && objectType !== "" ? (
-              <ModelPanel objectType={objectType} modified={summary.modified} />
+              <ModelPanel objectType={objectType} range={range} modified={summary.modified} />
             ) : null}
             {screen === "data" ? <EventsPanel page={page} lang={lang} onPage={setOffset} /> : null}
           </main>

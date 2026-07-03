@@ -3,16 +3,19 @@ import {
   fetchLeadTimes,
   fetchVariants,
   type LeadTimeReport,
+  type Range,
   type VariantsResponse,
 } from "./api.ts";
 import { useMessages } from "./i18n.tsx";
 
 export default function VariantsPanel({
   objectType,
+  range,
   modified,
   onShowCases,
 }: {
   objectType: string;
+  range: Range | null;
   modified: string;
   onShowCases: (activities: string[]) => void;
 }) {
@@ -26,14 +29,14 @@ export default function VariantsPanel({
     if (objectType === "") {
       return;
     }
-    Promise.all([fetchVariants(objectType), fetchLeadTimes(objectType)])
+    Promise.all([fetchVariants(objectType, range), fetchLeadTimes(objectType, range)])
       .then(([r, l]) => {
         setReport(r);
         setLeads(l);
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [objectType, modified]);
+  }, [objectType, range, modified]);
 
     return (
     <div className="panel">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchModel, type ProcessTree } from "./api.ts";
+import { fetchModel, type ProcessTree, type Range } from "./api.ts";
 import { useMessages } from "./i18n.tsx";
 
 const OPERATOR: Record<string, string> = {
@@ -44,9 +44,11 @@ function TreeNode({ tree }: { tree: ProcessTree }) {
 
 export default function ModelPanel({
   objectType,
+  range,
   modified,
 }: {
   objectType: string;
+  range: Range | null;
   modified: string;
 }) {
   const t = useMessages();
@@ -58,13 +60,13 @@ export default function ModelPanel({
     if (objectType === "") {
       return;
     }
-    fetchModel(objectType)
+    fetchModel(objectType, range)
       .then((tree) => {
         setModel({ forType: objectType, tree });
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [objectType, modified]);
+  }, [objectType, range, modified]);
 
     return (
     <div className="panel">

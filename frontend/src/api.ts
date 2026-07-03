@@ -62,6 +62,25 @@ export interface EventsPage {
   items: EventRow[];
 }
 
+export interface Range {
+  from: string;
+  to: string;
+}
+
+export function rangeParams(range: Range | null): string {
+  if (!range) {
+    return "";
+  }
+  const parts = [];
+  if (range.from !== "") {
+    parts.push(`from=${range.from}`);
+  }
+  if (range.to !== "") {
+    parts.push(`to=${range.to}`);
+  }
+  return parts.length > 0 ? `&${parts.join("&")}` : "";
+}
+
 // Everything is a pure function of the file content, so responses are cached
 // by URL and the whole cache is dropped when the file's mtime changes.
 const cache = new Map<string, Promise<unknown>>();
@@ -133,10 +152,11 @@ export type ProcessTree =
   | { type: "parallel"; children: ProcessTree[] }
   | { type: "loop"; children: ProcessTree[] };
 
-export const fetchSummary = () => get<Summary>("/api/summary");
+export const fetchSummary = (range: Range | null) =>
+  get<Summary>(`/api/summary?_=1${rangeParams(range)}`);
 
-export const fetchDfg = (objectType: string) =>
-  get<Dfg>(`/api/dfg?type=${encodeURIComponent(objectType)}`);
+export const fetchDfg = (objectType: string, range: Range | null) =>
+  get<Dfg>(`/api/dfg?type=${encodeURIComponent(objectType)}${rangeParams(range)}`);
 
 export interface VariantLead {
   activities: string[];
@@ -185,6 +205,7 @@ export type CaseFilter =
 export const fetchCases = (
   objectType: string,
   filter: CaseFilter | null,
+  range: Range | null,
   offset: number,
   limit: number,
 ) => {
@@ -195,26 +216,28 @@ export const fetchCases = (
     extra = `&edge=${encodeURIComponent(`${filter.from}\u001f${filter.to}`)}`;
   }
   return get<CasesPage>(
-    `/api/cases?type=${encodeURIComponent(objectType)}${extra}&offset=${offset}&limit=${limit}`,
+    `/api/cases?type=${encodeURIComponent(objectType)}${extra}${rangeParams(range)}&offset=${offset}&limit=${limit}`,
   );
 };
 
-export const fetchCase = (id: string) =>
-  get<CaseDetail>(`/api/case?id=${encodeURIComponent(id)}`);
+export const fetchCase = (id: string, range: Range | null) =>
+  get<CaseDetail>(`/api/case?id=${encodeURIComponent(id)}${rangeParams(range)}`);
 
-export const fetchLeadTimes = (objectType: string) =>
-  get<LeadTimeReport>(`/api/leadtimes?type=${encodeURIComponent(objectType)}`);
-
-export const fetchModel = (objectType: string) =>
-  get<ProcessTree>(`/api/model?type=${encodeURIComponent(objectType)}`);
-
-export const fetchVariants = (objectType: string, limit = 50) =>
-  get<VariantsResponse>(
-    `/api/variants?type=${encodeURIComponent(objectType)}&limit=${limit}`,
+export const fetchLeadTimes = (objectType: string, range: Range | null) =>
+  get<LeadTimeReport>(
+    `/api/leadtimes?type=${encodeURIComponent(objectType)}${rangeParams(range)}`,
   );
 
-export const fetchEvents = (offset: number, limit: number) =>
-  get<EventsPage>(`/api/events?offset=${offset}&limit=${limit}`);
+export const fetchModel = (objectType: string, range: Range | null) =>
+  get<ProcessTree>(`/api/model?type=${encodeURIComponent(objectType)}${rangeParams(range)}`);
+
+export const fetchVariants = (objectType: string, range: Range | null, limit = 50) =>
+  get<VariantsResponse>(
+    `/api/variants?type=${encodeURIComponent(objectType)}&limit=${limit}${rangeParams(range)}`,
+  );
+
+export const fetchEvents = (offset: number, limit: number, range: Range | null) =>
+  get<EventsPage>(`/api/events?offset=${offset}&limit=${limit}${rangeParams(range)}`);
 
 export const fetchStatus = async (): Promise<{ modified: string }> => {
   const res = await fetch("/api/status");

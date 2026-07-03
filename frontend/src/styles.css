@@ -279,6 +279,22 @@ main {
   min-width: 0;
 }
 
+.header-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header-range input[type="date"] {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  padding: 3px 6px;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
 .header-select {
   background: var(--panel);
   color: var(--text);

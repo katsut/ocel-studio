@@ -5,6 +5,7 @@ import {
   type CaseDetail,
   type CaseFilter,
   type CasesPage,
+  type Range,
 } from "./api.ts";
 import { useMessages } from "./i18n.tsx";
 import type { Lang } from "./i18n.tsx";
@@ -65,12 +66,14 @@ function Timeline({
 
 export default function CasesPanel({
   objectType,
+  range,
   modified,
   lang,
   filter,
   onClearFilter,
 }: {
   objectType: string;
+  range: Range | null;
   modified: string;
   lang: Lang;
   filter: CaseFilter | null;
@@ -88,16 +91,16 @@ export default function CasesPanel({
   }, [objectType, filter]);
 
   useEffect(() => {
-    fetchCases(objectType, filter, offset, PAGE_SIZE)
+    fetchCases(objectType, filter, range, offset, PAGE_SIZE)
       .then((p) => {
         setPage(p);
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [objectType, filter, offset, modified]);
+  }, [objectType, filter, range, offset, modified]);
 
   const open = (id: string) => {
-    fetchCase(id)
+    fetchCase(id, range)
       .then(setDetail)
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   };
