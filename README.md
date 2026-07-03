@@ -8,8 +8,24 @@ keep the log synced — without sending your event data anywhere.
 
 ## Status
 
-Early scaffold. The architecture is being laid down; nothing to run yet.
+First vertical slice: open a log, see the summary (event/object types, time range,
+validation), page through events, and live-reload when the file changes on disk —
+so an incrementally synced log behaves like a living dashboard. Analysis views
+(OC-DFG, variants) arrive with the ocel-mine library.
 Design decisions are recorded in [docs/adr](docs/adr/).
+
+## Quickstart
+
+```sh
+pnpm --dir frontend install
+pnpm --dir frontend build          # embedded into the binary at compile time
+cargo run --release -- path/to/log.sqlite
+# → ocel-studio running at http://127.0.0.1:6235/
+```
+
+Try it with an official sample log, e.g. the
+[Order Management](https://zenodo.org/records/18373906) dataset (21K events) or the
+PM4Py `ocel20_example` fixtures.
 
 ## The ocel family
 
