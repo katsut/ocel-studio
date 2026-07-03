@@ -23,6 +23,7 @@ export interface Messages {
   updated: (time: string) => string;
   loading: string;
   serverUnreachable: string;
+  flowPanel: string;
   variantsPanel: string;
   objectTypeLabel: string;
   shareCol: string;
@@ -55,6 +56,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     updated: (time) => `updated ${time}`,
     loading: "loading…",
     serverUnreachable: "server unreachable",
+    flowPanel: "Flow",
     variantsPanel: "Variants",
     objectTypeLabel: "Object type",
     shareCol: "Share",
@@ -85,6 +87,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     updated: (time) => `更新 ${time}`,
     loading: "読み込み中…",
     serverUnreachable: "サーバに接続できません",
+    flowPanel: "フロー",
     variantsPanel: "バリアント",
     objectTypeLabel: "オブジェクト型",
     shareCol: "割合",

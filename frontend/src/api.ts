@@ -54,7 +54,35 @@ export interface VariantsResponse {
   variants: VariantRow[];
 }
 
+export interface DfgNode {
+  activity: string;
+  events: number;
+  objects: number;
+  starts: number;
+  ends: number;
+}
+
+export interface DfgEdge {
+  from: string;
+  to: string;
+  frequency: number;
+  objects: number;
+  medianSecs: number;
+  meanSecs: number;
+}
+
+export interface Dfg {
+  objectType: string;
+  objects: number;
+  withEvents: number;
+  nodes: DfgNode[];
+  edges: DfgEdge[];
+}
+
 export const fetchSummary = () => get<Summary>("/api/summary");
+
+export const fetchDfg = (objectType: string) =>
+  get<Dfg>(`/api/dfg?type=${encodeURIComponent(objectType)}`);
 
 export const fetchVariants = (objectType: string, limit = 50) =>
   get<VariantsResponse>(

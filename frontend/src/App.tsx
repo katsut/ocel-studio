@@ -17,6 +17,7 @@ import {
   themeIcon,
   type Theme,
 } from "./preferences.ts";
+import FlowPanel from "./Flow.tsx";
 import VariantsPanel from "./Variants.tsx";
 
 const PAGE_SIZE = 50;
@@ -221,6 +222,7 @@ function Dashboard({
             <TypeTable title={t.eventTypes} rows={summary.eventTypes} />
             <TypeTable title={t.objectTypes} rows={summary.objectTypes} />
           </div>
+          <FlowPanel types={summary.objectTypes} modified={summary.modified} />
           <VariantsPanel types={summary.objectTypes} modified={summary.modified} />
           <EventsPanel page={page} lang={lang} onPage={setOffset} />
         </main>
