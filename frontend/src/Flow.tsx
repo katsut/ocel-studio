@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { graphlib, layout } from "@dagrejs/dagre";
-import { fetchDfg, type Dfg, type DfgEdge, type DfgNode } from "./api.ts";
+import { fetchDfg, type Dfg, type DfgEdge, type DfgNode, type Range } from "./api.ts";
 import { useMessages, type Messages } from "./i18n.tsx";
 
 const NODE_H = 40;
@@ -178,10 +178,12 @@ type Selection =
 
 export default function FlowPanel({
   objectType,
+  range,
   modified,
   onShowCases,
 }: {
   objectType: string;
+  range: Range | null;
   modified: string;
   onShowCases: (from: string, to: string) => void;
 }) {
@@ -198,13 +200,13 @@ export default function FlowPanel({
       return;
     }
     setSel(null);
-    fetchDfg(objectType)
+    fetchDfg(objectType, range)
       .then((d) => {
         setDfg(d);
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [objectType, modified]);
+  }, [objectType, range, modified]);
 
     const filtered = dfg && dfg.objectType === objectType ? filterEdges(dfg, detail) : null;
   const laid = filtered ? buildLayout(filtered, t) : null;

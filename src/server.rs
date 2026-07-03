@@ -16,7 +16,9 @@ use axum::http::{header, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
+use std::borrow::Cow;
+
+use chrono::{DateTime, NaiveDate, Utc};
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -116,6 +118,57 @@ async fn ensure_fresh(state: &AppState) -> Result<(), ApiError> {
     Ok(())
 }
 
+/// Optional global time window (dates, inclusive). Filters events; cases
+/// spanning the boundary appear truncated — stated in the UI guide.
+#[derive(Deserialize, Default)]
+struct RangeQuery {
+    from: Option<String>,
+    to: Option<String>,
+}
+
+fn parse_day(s: &str) -> Result<NaiveDate, ApiError> {
+    NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("bad date {s}: {e}")))
+}
+
+/// Borrow the log as-is, or build a windowed copy holding only the events
+/// inside the range (all declarations and objects are kept).
+fn window<'a>(log: &'a ocel::Ocel, range: &RangeQuery) -> Result<Cow<'a, ocel::Ocel>, ApiError> {
+    if range.from.is_none() && range.to.is_none() {
+        return Ok(Cow::Borrowed(log));
+    }
+    let from: Option<DateTime<Utc>> = range
+        .from
+        .as_deref()
+        .map(parse_day)
+        .transpose()?
+        .map(|d| d.and_hms_opt(0, 0, 0).expect("midnight is valid").and_utc());
+    let to: Option<DateTime<Utc>> = range.to.as_deref().map(parse_day).transpose()?.map(|d| {
+        d.and_hms_opt(23, 59, 59)
+            .expect("end of day is valid")
+            .and_utc()
+    });
+    let events: Vec<ocel::Event> = log
+        .events
+        .iter()
+        .filter(|e| from.is_none_or(|f| e.time >= f) && to.is_none_or(|t| e.time <= t))
+        .cloned()
+        .collect();
+    Ok(Cow::Owned(ocel::Ocel {
+        event_types: log.event_types.clone(),
+        object_types: log.object_types.clone(),
+        events,
+        objects: log.objects.clone(),
+    }))
+}
+
+/// Time-sorted event indices for a (possibly windowed) log.
+fn time_order(log: &ocel::Ocel) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..log.events.len()).collect();
+    order.sort_unstable_by_key(|&i| (log.events[i].time, i));
+    order
+}
+
 #[derive(Serialize)]
 struct TypeCount {
     name: String,
@@ -164,13 +217,22 @@ fn type_counts<'a>(
 }
 
 #[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
-async fn summary(State(state): State<Arc<AppState>>) -> Result<Json<Summary>, ApiError> {
+async fn summary(
+    State(state): State<Arc<AppState>>,
+    Query(range): Query<RangeQuery>,
+) -> Result<Json<Summary>, ApiError> {
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
-    let log = &loaded.log;
-    let time_range = (!loaded.by_time.is_empty()).then(|| TimeRange {
-        start: log.events[loaded.by_time[0]].time,
-        end: log.events[loaded.by_time[loaded.by_time.len() - 1]].time,
+    let log = window(&loaded.log, &range)?;
+    let windowed = matches!(log, Cow::Owned(_));
+    let by_time = if windowed {
+        time_order(&log)
+    } else {
+        loaded.by_time.clone()
+    };
+    let time_range = (!by_time.is_empty()).then(|| TimeRange {
+        start: log.events[by_time[0]].time,
+        end: log.events[by_time[by_time.len() - 1]].time,
     });
     Ok(Json(Summary {
         path: state.path.display().to_string(),
@@ -185,7 +247,11 @@ async fn summary(State(state): State<Arc<AppState>>) -> Result<Json<Summary>, Ap
             log.object_types.iter().map(|t| t.name.as_str()),
             log.objects.iter().map(|o| o.object_type.as_str()),
         ),
-        type_stats: loaded.type_stats.clone(),
+        type_stats: if windowed {
+            ocel_mine::type_stats(&log)
+        } else {
+            loaded.type_stats.clone()
+        },
         time_range,
         violations: loaded.violations.clone(),
     }))
@@ -193,6 +259,8 @@ async fn summary(State(state): State<Arc<AppState>>) -> Result<Json<Summary>, Ap
 
 #[derive(Deserialize)]
 struct PageQuery {
+    #[serde(flatten)]
+    range: RangeQuery,
     #[serde(default)]
     offset: usize,
     #[serde(default = "default_limit")]
@@ -232,10 +300,14 @@ async fn events(
 ) -> Result<Json<EventsPage>, ApiError> {
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
-    let log = &loaded.log;
+    let log = window(&loaded.log, &page.range)?;
+    let by_time = if matches!(log, Cow::Owned(_)) {
+        time_order(&log)
+    } else {
+        loaded.by_time.clone()
+    };
     let limit = page.limit.min(MAX_PAGE);
-    let items = loaded
-        .by_time
+    let items = by_time
         .iter()
         .skip(page.offset)
         .take(limit)
@@ -257,7 +329,7 @@ async fn events(
         })
         .collect();
     Ok(Json(EventsPage {
-        total: loaded.by_time.len(),
+        total: by_time.len(),
         offset: page.offset,
         items,
     }))
@@ -265,6 +337,8 @@ async fn events(
 
 #[derive(Deserialize)]
 struct VariantsQuery {
+    #[serde(flatten)]
+    range: RangeQuery,
     #[serde(rename = "type")]
     object_type: String,
     #[serde(default = "default_variants_limit")]
@@ -292,7 +366,8 @@ async fn variants(
 ) -> Result<Json<VariantsResponse>, ApiError> {
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
-    let mut report = ocel_mine::variants(&loaded.log, &query.object_type);
+    let log = window(&loaded.log, &query.range)?;
+    let mut report = ocel_mine::variants(&log, &query.object_type);
     let total_variants = report.variants.len();
     report.variants.truncate(query.limit.min(MAX_PAGE));
     Ok(Json(VariantsResponse {
@@ -306,6 +381,8 @@ async fn variants(
 
 #[derive(Deserialize)]
 struct DfgQuery {
+    #[serde(flatten)]
+    range: RangeQuery,
     #[serde(rename = "type")]
     object_type: String,
 }
@@ -317,11 +394,14 @@ async fn dfg(
 ) -> Result<Json<ocel_mine::Dfg>, ApiError> {
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
-    Ok(Json(ocel_mine::dfg(&loaded.log, &query.object_type)))
+    let log = window(&loaded.log, &query.range)?;
+    Ok(Json(ocel_mine::dfg(&log, &query.object_type)))
 }
 
 #[derive(Deserialize)]
 struct CasesQuery {
+    #[serde(flatten)]
+    range: RangeQuery,
     #[serde(rename = "type")]
     object_type: String,
     /// Activity sequence joined by the unit separator (U+001F).
@@ -349,7 +429,8 @@ async fn cases(
 ) -> Result<Json<CasesPage>, ApiError> {
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
-    let all = ocel_mine::cases(&loaded.log, &query.object_type);
+    let log = window(&loaded.log, &query.range)?;
+    let all = ocel_mine::cases(&log, &query.object_type);
     let filtered: Vec<ocel_mine::CaseSummary> = if let Some(joined) = &query.variant {
         let want: Vec<&str> = joined.split('\u{1f}').collect();
         all.into_iter()
@@ -382,6 +463,8 @@ async fn cases(
 
 #[derive(Deserialize)]
 struct CaseQuery {
+    #[serde(flatten)]
+    range: RangeQuery,
     id: String,
 }
 
@@ -399,9 +482,13 @@ async fn case_detail(
 ) -> Result<Json<CaseDetail>, ApiError> {
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
-    let log = &loaded.log;
-    let items: Vec<EventRow> = loaded
-        .by_time
+    let log = window(&loaded.log, &query.range)?;
+    let by_time = if matches!(log, Cow::Owned(_)) {
+        time_order(&log)
+    } else {
+        loaded.by_time.clone()
+    };
+    let items: Vec<EventRow> = by_time
         .iter()
         .map(|&i| &log.events[i])
         .filter(|event| event.relationships.iter().any(|r| r.object_id == query.id))
@@ -432,7 +519,8 @@ async fn leadtimes(
 ) -> Result<Json<ocel_mine::LeadTimeReport>, ApiError> {
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
-    Ok(Json(ocel_mine::lead_times(&loaded.log, &query.object_type)))
+    let log = window(&loaded.log, &query.range)?;
+    Ok(Json(ocel_mine::lead_times(&log, &query.object_type)))
 }
 
 #[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
@@ -442,7 +530,8 @@ async fn model(
 ) -> Result<Json<ocel_mine::ProcessTree>, ApiError> {
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
-    Ok(Json(ocel_mine::inductive(&loaded.log, &query.object_type)))
+    let log = window(&loaded.log, &query.range)?;
+    Ok(Json(ocel_mine::inductive(&log, &query.object_type)))
 }
 
 #[derive(Serialize)]

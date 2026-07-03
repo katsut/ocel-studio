@@ -5,6 +5,7 @@ import {
   fetchVariants,
   type Dfg,
   type LeadTimeReport,
+  type Range,
   type VariantsResponse,
 } from "./api.ts";
 import { useMessages } from "./i18n.tsx";
@@ -27,10 +28,12 @@ function shortPath(activities: string[]): string {
 
 export default function Insights({
   objectType,
+  range,
   modified,
   onNavigate,
 }: {
   objectType: string;
+  range: Range | null;
   modified: string;
   onNavigate: (screen: Screen) => void;
 }) {
@@ -41,7 +44,11 @@ export default function Insights({
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([fetchVariants(objectType, 1), fetchDfg(objectType), fetchLeadTimes(objectType)])
+    Promise.all([
+      fetchVariants(objectType, range, 1),
+      fetchDfg(objectType, range),
+      fetchLeadTimes(objectType, range),
+    ])
       .then(([v, d, l]) => {
         setVariants(v);
         setDfg(d);
@@ -52,7 +59,7 @@ export default function Insights({
         setDfg(null);
         setLeads(null);
       });
-  }, [objectType, modified]);
+  }, [objectType, range, modified]);
 
   if (
     !variants ||

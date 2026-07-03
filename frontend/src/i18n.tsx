@@ -68,6 +68,8 @@ export interface Messages {
   themeTitle: string;
   langTitle: string;
   guidesTitle: string;
+  rangeTitle: string;
+  rangeNote: string;
   navOverview: string;
   navCases: string;
   casesPanel: string;
@@ -178,6 +180,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     themeTitle: "Theme",
     langTitle: "Language",
     guidesTitle: "Reading guides",
+    rangeTitle: "Period",
+    rangeNote: "Filtering by period recomputes every screen over the events inside it; cases that span the boundary appear cut.",
     navOverview: "Overview",
     navCases: "Cases",
     casesPanel: "Cases",
@@ -287,6 +291,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     themeTitle: "テーマ",
     langTitle: "言語",
     guidesTitle: "読み方ガイド",
+    rangeTitle: "期間",
+    rangeNote: "期間で絞ると、その期間内のイベントだけで全画面を再計算します。期間をまたぐケースは途中扱いになります。",
     navOverview: "概要",
     navCases: "ケース",
     casesPanel: "ケース",
