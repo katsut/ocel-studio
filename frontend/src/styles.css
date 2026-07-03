@@ -645,7 +645,8 @@ th.num {
 
 .flow-scroll {
   overflow: auto;
-  max-height: 640px;
+  max-height: calc(100vh - 230px);
+  min-height: 420px;
   position: relative;
 }
 
@@ -660,7 +661,7 @@ th.num {
 }
 
 .flow-tip {
-  position: absolute;
+  position: fixed;
   z-index: 10;
   max-width: 320px;
   background: var(--panel);

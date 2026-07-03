@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { graphlib, layout } from "@dagrejs/dagre";
 import { fetchDfg, type Dfg, type DfgEdge, type DfgNode } from "./api.ts";
 import { useMessages, type Messages } from "./i18n.tsx";
@@ -180,7 +180,6 @@ export default function FlowPanel({
   modified: string;
 }) {
   const t = useMessages();
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [detail, setDetail] = useState(0);
   const [dfg, setDfg] = useState<Dfg | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
@@ -203,17 +202,17 @@ export default function FlowPanel({
   const laid = filtered ? buildLayout(filtered, t) : null;
 
   const place = (event: React.MouseEvent, title: string, lines: string[]) => {
-    const box = scrollRef.current;
-    if (!box) {
-      return;
+    const width = 330;
+    const height = 130;
+    let x = event.clientX + 14;
+    let y = event.clientY + 14;
+    if (x + width > window.innerWidth) {
+      x = event.clientX - width - 14;
     }
-    const rect = box.getBoundingClientRect();
-    setTip({
-      x: event.clientX - rect.left + box.scrollLeft + 14,
-      y: event.clientY - rect.top + box.scrollTop + 14,
-      title,
-      lines,
-    });
+    if (y + height > window.innerHeight) {
+      y = event.clientY - height - 14;
+    }
+    setTip({ x, y, title, lines });
   };
 
   const edgeTip = (event: React.MouseEvent, edge: DfgEdge) => {
@@ -261,7 +260,7 @@ export default function FlowPanel({
       ) : null}
       {error ? <div className="error">{error}</div> : null}
       {laid ? (
-        <div className="flow-scroll" ref={scrollRef} onMouseLeave={() => setTip(null)}>
+        <div className="flow-scroll" onMouseLeave={() => setTip(null)}>
           <svg
             className="flow"
             width={laid.width}
