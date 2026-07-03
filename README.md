@@ -2,16 +2,20 @@
 
 Local-first process mining studio for [OCEL 2.0](https://www.ocel-standard.org/) event logs.
 
-Open an OCEL 2.0 file (SQLite / JSON / XML) and see your processes: object-centric
-directly-follows graphs, trace variants, lead times. Connect your issue trackers and
-keep the log synced — without sending your event data anywhere.
+Open an OCEL 2.0 file (SQLite / JSON / XML) and discover your processes: insight
+cards in plain language, a frequency-and-wait process map, trace variants with
+measured lead times, inductive-miner models — and drill from every number down
+to the real cases behind it. Without sending your event data anywhere.
+
+![ocel-studio overview (dark)](docs/assets/overview-dark.jpeg)
 
 ## Status
 
-First vertical slice: open a log, see the summary (event/object types, time range,
-validation), page through events, and live-reload when the file changes on disk —
-so an incrementally synced log behaves like a living dashboard. Analysis views
-(OC-DFG, variants) arrive with the ocel-mine library.
+The discovery loop is complete: one screen per question (overview / map / paths /
+cases / model / data), a global carried context (object type, time range), and
+every claim lands on real cases within two clicks. The log live-reloads when the
+file changes on disk, so an incrementally synced log behaves like a living
+dashboard. Data-source management (connector orchestration) is the next phase.
 Design decisions are recorded in [docs/adr](docs/adr/).
 
 ## Quickstart
