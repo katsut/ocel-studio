@@ -6,6 +6,7 @@
   --muted: #667085;
   --border: #e4e7ec;
   --accent: #4657d8;
+  --accent-contrast: #ffffff;
   --chip: #eef0fb;
 
   /* status — fixed, never themed, never a data series */
@@ -48,6 +49,7 @@
   --muted: #8b94a7;
   --border: #2a3242;
   --accent: #8b97f8;
+  --accent-contrast: #10141b;
   --chip: #232c42;
   --cat-1: #3987e5;
   --cat-2: #199e70;
@@ -67,6 +69,7 @@
     --muted: #8b94a7;
     --border: #2a3242;
     --accent: #8b97f8;
+    --accent-contrast: #10141b;
     --chip: #232c42;
     --cat-1: #3987e5;
     --cat-2: #199e70;
@@ -770,6 +773,88 @@ th.num {
 .arrow {
   color: var(--muted);
   font-size: 12px;
+}
+
+.algo-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.algo-tab {
+  background: var(--panel);
+  color: var(--muted);
+  border: none;
+  padding: 5px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.algo-tab + .algo-tab {
+  border-left: 1px solid var(--border);
+}
+
+.algo-tab.active {
+  background: var(--chip);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.model-params {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 2px 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.model-params input[type="range"] {
+  vertical-align: middle;
+  width: 140px;
+  accent-color: var(--accent);
+}
+
+.param-value {
+  display: inline-block;
+  min-width: 38px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.param-number {
+  width: 58px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px 6px;
+  font-size: 13px;
+}
+
+.rerun-button {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: 8px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rerun-button:disabled {
+  background: var(--chip);
+  color: var(--muted);
+  cursor: default;
+}
+
+.petri-place {
+  fill: var(--panel);
+  stroke: var(--muted);
+  stroke-width: 1.5;
 }
 
 .tree-scroll {

@@ -152,6 +152,62 @@ export type ProcessTree =
   | { type: "parallel"; children: ProcessTree[] }
   | { type: "loop"; children: ProcessTree[] };
 
+export interface PetriNet {
+  objectType: string;
+  transitions: string[];
+  places: { id: string; inputs: string[]; outputs: string[] }[];
+  warnings: string[];
+}
+
+export interface HeuristicActivity {
+  activity: string;
+  frequency: number;
+  starts: number;
+  ends: number;
+}
+
+export interface HeuristicEdge {
+  from: string;
+  to: string;
+  frequency: number;
+  dependency: number;
+}
+
+export interface HeuristicsNet {
+  objectType: string;
+  objects: number;
+  withEvents: number;
+  activities: HeuristicActivity[];
+  edges: HeuristicEdge[];
+}
+
+export type Algo = "inductive" | "alpha" | "heuristics";
+
+/// Discovery tuning; every value lands in the request URL, so results are
+/// cached per parameter set and re-running a previous setting is instant.
+export interface ModelParams {
+  algo: Algo;
+  /// inductive: 0..1 fraction of the strongest edge below which rare
+  /// directly-follows edges are ignored
+  noise: number;
+  /// heuristics: 0..1 minimum dependency value
+  dependency: number;
+  /// heuristics: drop edges observed fewer times than this
+  minEdge: number;
+}
+
+export const DEFAULT_MODEL_PARAMS: ModelParams = {
+  algo: "inductive",
+  noise: 0,
+  dependency: 0.9,
+  minEdge: 1,
+};
+
+export type ModelResult =
+  | { algo: "inductive"; tree: ProcessTree }
+  | { algo: "alpha"; net: PetriNet }
+  | { algo: "heuristics"; net: HeuristicsNet };
+
 export const fetchSummary = (range: Range | null) =>
   get<Summary>(`/api/summary?_=1${rangeParams(range)}`);
 
@@ -228,8 +284,17 @@ export const fetchLeadTimes = (objectType: string, range: Range | null) =>
     `/api/leadtimes?type=${encodeURIComponent(objectType)}${rangeParams(range)}`,
   );
 
-export const fetchModel = (objectType: string, range: Range | null) =>
-  get<ProcessTree>(`/api/model?type=${encodeURIComponent(objectType)}${rangeParams(range)}`);
+export const fetchModel = (objectType: string, params: ModelParams, range: Range | null) => {
+  let tuning = "";
+  if (params.algo === "inductive" && params.noise > 0) {
+    tuning = `&noise=${params.noise}`;
+  } else if (params.algo === "heuristics") {
+    tuning = `&dependency=${params.dependency}&min_edge=${params.minEdge}`;
+  }
+  return get<ModelResult>(
+    `/api/model?type=${encodeURIComponent(objectType)}&algo=${params.algo}${tuning}${rangeParams(range)}`,
+  );
+};
 
 export const fetchVariants = (objectType: string, range: Range | null, limit = 50) =>
   get<VariantsResponse>(

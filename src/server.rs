@@ -523,15 +523,68 @@ async fn leadtimes(
     Ok(Json(ocel_mine::lead_times(&log, &query.object_type)))
 }
 
+#[derive(Deserialize)]
+struct ModelQuery {
+    #[serde(flatten)]
+    range: RangeQuery,
+    #[serde(rename = "type")]
+    object_type: String,
+    #[serde(default)]
+    algo: Option<String>,
+    /// Inductive: fraction of the strongest edge below which a rare
+    /// directly-follows edge is ignored.
+    #[serde(default)]
+    noise: Option<f64>,
+    /// Heuristics: minimum dependency value for an edge.
+    #[serde(default)]
+    dependency: Option<f64>,
+    /// Heuristics: drop edges observed fewer times than this.
+    #[serde(default)]
+    min_edge: Option<usize>,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "algo", rename_all = "camelCase")]
+enum ModelResult {
+    Inductive { tree: ocel_mine::ProcessTree },
+    Alpha { net: ocel_mine::PetriNet },
+    Heuristics { net: ocel_mine::HeuristicsNet },
+}
+
 #[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
 async fn model(
     State(state): State<Arc<AppState>>,
-    Query(query): Query<DfgQuery>,
-) -> Result<Json<ocel_mine::ProcessTree>, ApiError> {
+    Query(query): Query<ModelQuery>,
+) -> Result<Json<ModelResult>, ApiError> {
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
     let log = window(&loaded.log, &query.range)?;
-    Ok(Json(ocel_mine::inductive(&log, &query.object_type)))
+    let result = match query.algo.as_deref().unwrap_or("inductive") {
+        "inductive" => ModelResult::Inductive {
+            tree: ocel_mine::inductive(
+                &log,
+                &query.object_type,
+                query.noise.unwrap_or(0.0).clamp(0.0, 1.0),
+            ),
+        },
+        "alpha" => ModelResult::Alpha {
+            net: ocel_mine::alpha(&log, &query.object_type),
+        },
+        "heuristics" => {
+            let params = ocel_mine::HeuristicsParams {
+                dependency_threshold: query.dependency.unwrap_or(0.9).clamp(0.0, 1.0),
+                min_edge_frequency: query.min_edge.unwrap_or(1),
+                ..ocel_mine::HeuristicsParams::default()
+            };
+            ModelResult::Heuristics {
+                net: ocel_mine::heuristics(&log, &query.object_type, &params),
+            }
+        }
+        other => {
+            return Err((StatusCode::BAD_REQUEST, format!("unknown algo: {other}")));
+        }
+    };
+    Ok(Json(result))
 }
 
 #[derive(Serialize)]

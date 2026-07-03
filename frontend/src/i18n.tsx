@@ -53,12 +53,30 @@ export interface Messages {
   tipNodeEvents: (events: string, objects: string) => string;
   tipNodeStartEnd: (starts: string, ends: string) => string;
   modelPanel: string;
-  modelHint: string;
   opSequence: string;
   opExclusive: string;
   opParallel: string;
   opLoop: string;
   opTau: string;
+  algoLabel: string;
+  algoInductive: string;
+  algoHeuristics: string;
+  algoAlpha: string;
+  algoInductiveDesc: string;
+  algoHeuristicsDesc: string;
+  algoAlphaDesc: string;
+  modelHintInductive: string;
+  modelHintHeuristics: string;
+  modelHintAlpha: string;
+  paramNoise: string;
+  paramNoiseHint: string;
+  paramDependency: string;
+  paramDependencyHint: string;
+  paramMinEdge: string;
+  rerunLabel: string;
+  modelWarnings: string;
+  depLabel: (dep: string) => string;
+  heuristicsEdgeCount: (n: number) => string;
   variantsPanel: string;
   objectTypeLabel: string;
   shareCol: string;
@@ -164,13 +182,38 @@ export const MESSAGES: Record<Lang, Messages> = {
     tipNodeEvents: (events, objects) => `Happened ${events} times across ${objects} objects`,
     tipNodeStartEnd: (starts, ends) => `Starts a trace ${starts}×, ends one ${ends}×`,
     modelPanel: "Model",
-    modelHint:
-      "Discovered with the basic inductive miner (sound by construction). How to read: → in this order · ✕ one of these · ＋ together, any order · ↺ repeats · τ nothing happens.",
     opSequence: "in this order",
     opExclusive: "one of these",
     opParallel: "together, in any order",
     opLoop: "repeats",
     opTau: "nothing happens (skip)",
+    algoLabel: "Method",
+    algoInductive: "Inductive",
+    algoHeuristics: "Heuristics",
+    algoAlpha: "Alpha",
+    algoInductiveDesc:
+      "Builds a structure tree that can replay every trace — the safe default.",
+    algoHeuristicsDesc:
+      "Draws only the connections the log rarely contradicts — best for messy logs.",
+    algoAlphaDesc:
+      "The 2004 textbook algorithm, shown as a Petri net — for learning, not for noisy data.",
+    modelHintInductive:
+      "Sound by construction. How to read: → in this order · ✕ one of these · ＋ together, any order · ↺ repeats · τ nothing happens.",
+    modelHintHeuristics:
+      "Each arrow shows how often it happened and how strongly the log believes in its direction (dependency, up to 1). Not a replayable model — a map of reliable connections.",
+    modelHintAlpha:
+      "○ is a state (place), boxes are activities (transitions). Honest about its limits: no self-loops, no noise tolerance, at most 20 activities.",
+    paramNoise: "Ignore rare flows",
+    paramNoiseHint:
+      "0% keeps every observed flow. Raising it lets the miner skip infrequent edges so the mainstream structure stands out.",
+    paramDependency: "Connection strictness",
+    paramDependencyHint:
+      "An arrow is kept when the dependency measure reaches this value. Lower it to see more (weaker) connections.",
+    paramMinEdge: "Seen at least",
+    rerunLabel: "Recompute",
+    modelWarnings: "Limits hit on this log",
+    depLabel: (dep) => `dependency ${dep}`,
+    heuristicsEdgeCount: (n) => `${n} connections kept`,
     variantsPanel: "Variants",
     objectTypeLabel: "Object type",
     shareCol: "Share",
@@ -274,13 +317,38 @@ export const MESSAGES: Record<Lang, Messages> = {
     tipNodeEvents: (events, objects) => `${events}回発生・${objects} 個のオブジェクトが通過`,
     tipNodeStartEnd: (starts, ends) => `トレースの開始 ${starts}回・終了 ${ends}回`,
     modelPanel: "プロセスの構造",
-    modelHint:
-      "basic inductive miner による発見（構成上 sound）。読み方: → この順で進む ・ ✕ どれか1つ ・ ＋ 同時（順不同）・ ↺ 繰り返し ・ τ 何もしない。",
     opSequence: "この順で進む",
     opExclusive: "どれか1つ",
     opParallel: "同時（順不同）",
     opLoop: "繰り返し",
     opTau: "何もしない（スキップ）",
+    algoLabel: "見つけ方",
+    algoInductive: "インダクティブ",
+    algoHeuristics: "ヒューリスティック",
+    algoAlpha: "アルファ",
+    algoInductiveDesc:
+      "すべてのトレースを再生できる構造の木を作ります。迷ったらこれ。",
+    algoHeuristicsDesc:
+      "ログがほとんど矛盾しないつながりだけを描きます。乱れたログに強い。",
+    algoAlphaDesc:
+      "2004年の教科書アルゴリズム。ペトリネットで表示します（学習用。ノイズには弱い）。",
+    modelHintInductive:
+      "構成上必ず筋が通る（sound）モデル。読み方: → この順で進む ・ ✕ どれか1つ ・ ＋ 同時（順不同）・ ↺ 繰り返し ・ τ 何もしない。",
+    modelHintHeuristics:
+      "矢印には回数と、ログがその向きをどれだけ信じているか（依存度・最大1）が付きます。再生可能なモデルではなく、確かなつながりの地図です。",
+    modelHintAlpha:
+      "○ は状態（プレース）、箱は活動（トランジション）。限界に正直: 自己ループ不可・ノイズ耐性なし・活動20個まで。",
+    paramNoise: "まれな流れを無視",
+    paramNoiseHint:
+      "0% は観測された流れをすべて説明します。上げるほど、まれな移動を飛ばして主流の構造を浮かび上がらせます。",
+    paramDependency: "つながりの確かさ",
+    paramDependencyHint:
+      "依存度がこの値以上の矢印だけを残します。下げると弱いつながりも見えます。",
+    paramMinEdge: "最低回数",
+    rerunLabel: "再計算",
+    modelWarnings: "このログで当たった限界",
+    depLabel: (dep) => `依存度 ${dep}`,
+    heuristicsEdgeCount: (n) => `${n} 本のつながりを表示`,
     variantsPanel: "よくある進み方",
     objectTypeLabel: "オブジェクトの種類",
     shareCol: "割合",
