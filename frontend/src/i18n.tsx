@@ -51,6 +51,11 @@ export interface Messages {
   tipNodeStartEnd: (starts: string, ends: string) => string;
   modelPanel: string;
   modelHint: string;
+  opSequence: string;
+  opExclusive: string;
+  opParallel: string;
+  opLoop: string;
+  opTau: string;
   variantsPanel: string;
   objectTypeLabel: string;
   shareCol: string;
@@ -133,7 +138,12 @@ export const MESSAGES: Record<Lang, Messages> = {
     tipNodeStartEnd: (starts, ends) => `Starts a trace ${starts}×, ends one ${ends}×`,
     modelPanel: "Model",
     modelHint:
-      "Discovered with the basic inductive miner (sound by construction): → sequence, ✕ choice, ∧ parallel, ↺ loop, τ silent.",
+      "Discovered with the basic inductive miner (sound by construction). How to read: → in this order · ✕ one of these · ＋ together, any order · ↺ repeats · τ nothing happens.",
+    opSequence: "in this order",
+    opExclusive: "one of these",
+    opParallel: "together, in any order",
+    opLoop: "repeats",
+    opTau: "nothing happens (skip)",
     variantsPanel: "Variants",
     objectTypeLabel: "Object type",
     shareCol: "Share",
@@ -213,7 +223,12 @@ export const MESSAGES: Record<Lang, Messages> = {
     tipNodeStartEnd: (starts, ends) => `トレースの開始 ${starts}回・終了 ${ends}回`,
     modelPanel: "プロセスの構造",
     modelHint:
-      "basic inductive miner による発見（構成上 sound）: → 順次、✕ 排他、∧ 並行、↺ ループ、τ 無音。",
+      "basic inductive miner による発見（構成上 sound）。読み方: → この順で進む ・ ✕ どれか1つ ・ ＋ 同時（順不同）・ ↺ 繰り返し ・ τ 何もしない。",
+    opSequence: "この順で進む",
+    opExclusive: "どれか1つ",
+    opParallel: "同時（順不同）",
+    opLoop: "繰り返し",
+    opTau: "何もしない（スキップ）",
     variantsPanel: "よくある進み方",
     objectTypeLabel: "オブジェクトの種類",
     shareCol: "割合",
