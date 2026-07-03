@@ -23,7 +23,15 @@ export interface Messages {
   updated: (time: string) => string;
   loading: string;
   serverUnreachable: string;
+  intro: string;
+  eventTypesHint: string;
+  objectTypesHint: string;
+  flowHint: string;
+  variantsHint: string;
+  eventsHint: string;
   flowPanel: string;
+  modelPanel: string;
+  modelHint: string;
   variantsPanel: string;
   objectTypeLabel: string;
   shareCol: string;
@@ -56,7 +64,20 @@ export const MESSAGES: Record<Lang, Messages> = {
     updated: (time) => `updated ${time}`,
     loading: "loading…",
     serverUnreachable: "server unreachable",
+    intro:
+      "This is your event log as a process: what happened, to which objects, in what order. Pick an object type in the panels below to follow its lifecycle.",
+    eventTypesHint: "The activities recorded in this log, and how often each happened.",
+    objectTypesHint:
+      "The entities flowing through the process. Every analysis below is per object type — one object's events form one trace.",
+    flowHint:
+      "The process map: how objects of this type move between activities. Thicker edges = more frequent; labels show frequency and the median gap.",
+    variantsHint:
+      "The distinct paths taken. The top row is the most common way through the process.",
+    eventsHint: "The raw events in time order.",
     flowPanel: "Flow",
+    modelPanel: "Model",
+    modelHint:
+      "Discovered with the basic inductive miner (sound by construction): → sequence, ✕ choice, ∧ parallel, ↺ loop, τ silent.",
     variantsPanel: "Variants",
     objectTypeLabel: "Object type",
     shareCol: "Share",
@@ -73,8 +94,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     validation: "検証",
     valid: "適合",
     violations: (n) => `違反 ${n} 件`,
-    eventTypes: "イベント型",
-    objectTypes: "オブジェクト型",
+    eventTypes: "活動の種類",
+    objectTypes: "オブジェクトの種類",
     typeCol: "型",
     countCol: "件数",
     eventsPanel: "イベント",
@@ -87,9 +108,21 @@ export const MESSAGES: Record<Lang, Messages> = {
     updated: (time) => `更新 ${time}`,
     loading: "読み込み中…",
     serverUnreachable: "サーバに接続できません",
-    flowPanel: "フロー",
-    variantsPanel: "バリアント",
-    objectTypeLabel: "オブジェクト型",
+    intro:
+      "イベントログをプロセスとして表示しています — 何が・どのオブジェクトに・どの順で起きたか。下の各パネルでオブジェクト型を選ぶと、その型のライフサイクルを追えます。",
+    eventTypesHint: "このログに記録されている活動と、それぞれの発生回数。",
+    objectTypesHint:
+      "プロセスを流れる実体。以下の分析はすべてこの型ごとに行われます — 1オブジェクトのイベント列が1トレースです。",
+    flowHint:
+      "プロセスマップ: この型のオブジェクトが活動間をどう移動したか。太い矢印ほど頻度が高く、ラベルは回数と所要時間の中央値。",
+    variantsHint: "通り方のパターン一覧。上の行ほど多くのオブジェクトが同じ経路を通っています。",
+    eventsHint: "時刻順の生イベント。",
+    flowPanel: "プロセスの流れ",
+    modelPanel: "プロセスの構造",
+    modelHint:
+      "basic inductive miner による発見（構成上 sound）: → 順次、✕ 排他、∧ 並行、↺ ループ、τ 無音。",
+    variantsPanel: "よくある進み方",
+    objectTypeLabel: "オブジェクトの種類",
     shareCol: "割合",
     sequenceCol: "シーケンス",
     coverage: (withEvents, objects) =>

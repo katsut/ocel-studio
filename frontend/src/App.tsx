@@ -18,6 +18,7 @@ import {
   type Theme,
 } from "./preferences.ts";
 import FlowPanel from "./Flow.tsx";
+import ModelPanel from "./Model.tsx";
 import VariantsPanel from "./Variants.tsx";
 
 const PAGE_SIZE = 50;
@@ -37,11 +38,12 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-function TypeTable({ title, rows }: { title: string; rows: TypeCount[] }) {
+function TypeTable({ title, hint, rows }: { title: string; hint: string; rows: TypeCount[] }) {
   const t = useMessages();
   return (
     <div className="panel">
       <h2>{title}</h2>
+      <p className="muted">{hint}</p>
       <table>
         <thead>
           <tr>
@@ -79,6 +81,7 @@ function EventsPanel({
   return (
     <div className="panel">
       <h2>{t.eventsPanel}</h2>
+      <p className="muted">{t.eventsHint}</p>
       <table>
         <thead>
           <tr>
@@ -193,6 +196,7 @@ function Dashboard({
       {error ? <div className="error">{error}</div> : null}
       {summary && page ? (
         <main>
+          <p className="muted intro">{t.intro}</p>
           <div className="cards">
             <StatCard label={t.events} value={summary.events.toLocaleString()} />
             <StatCard label={t.objects} value={summary.objects.toLocaleString()} />
@@ -219,10 +223,11 @@ function Dashboard({
             </details>
           ) : null}
           <div className="columns">
-            <TypeTable title={t.eventTypes} rows={summary.eventTypes} />
-            <TypeTable title={t.objectTypes} rows={summary.objectTypes} />
+            <TypeTable title={t.eventTypes} hint={t.eventTypesHint} rows={summary.eventTypes} />
+            <TypeTable title={t.objectTypes} hint={t.objectTypesHint} rows={summary.objectTypes} />
           </div>
           <FlowPanel types={summary.objectTypes} modified={summary.modified} />
+          <ModelPanel types={summary.objectTypes} modified={summary.modified} />
           <VariantsPanel types={summary.objectTypes} modified={summary.modified} />
           <EventsPanel page={page} lang={lang} onPage={setOffset} />
         </main>

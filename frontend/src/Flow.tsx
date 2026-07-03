@@ -197,6 +197,7 @@ export default function FlowPanel({
           </select>
         </label>
       </div>
+      <p className="muted">{t.flowHint}</p>
       {error ? <div className="error">{error}</div> : null}
       {laid ? (
         <div className="flow-scroll">
