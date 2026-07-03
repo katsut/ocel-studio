@@ -31,6 +31,9 @@ export interface Messages {
   insightWait: (from: string, to: string, freq: string, dur: string) => string;
   insightWaitLoop: (activity: string, freq: string, dur: string) => string;
   insightExceptionTitle: string;
+  insightPathTitle: string;
+  insightPath: (happy: string, rest: string, diff: string) => string;
+  leadCol: string;
   insightException: (pct: string, count: string) => string;
   copyLabel: string;
   eventTypesHint: string;
@@ -102,6 +105,10 @@ export const MESSAGES: Record<Lang, Messages> = {
     insightWaitLoop: (activity, freq, dur) =>
       `The most time is lost repeating ${activity}: ${freq} repeats × median ${dur}.`,
     insightExceptionTitle: "Exceptions",
+    insightPathTitle: "Path difference",
+    insightPath: (happy, rest, diff) =>
+      `The most common path takes a median ${happy}; every other path a median ${rest} (+${diff}, measured).`,
+    leadCol: "Lead (median)",
     insightException: (pct, count) =>
       `${pct}% (${count} objects) take a path other than the most common one.`,
     copyLabel: "Copy this sentence",
@@ -188,6 +195,10 @@ export const MESSAGES: Record<Lang, Messages> = {
     insightWaitLoop: (activity, freq, dur) =>
       `最も時間が失われているのは ${activity} の繰り返し — ${freq}回 × 中央値 ${dur}。`,
     insightExceptionTitle: "例外",
+    insightPathTitle: "経路の差",
+    insightPath: (happy, rest, diff) =>
+      `最頻経路の実測リードタイムは中央値 ${happy}。それ以外の経路は ${rest}（+${diff}）。`,
+    leadCol: "所要（中央値）",
     insightException: (pct, count) =>
       `${pct}%（${count} 件）は最頻経路以外を通る。`,
     copyLabel: "この文をコピー",

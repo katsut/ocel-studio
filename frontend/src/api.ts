@@ -122,6 +122,29 @@ export const fetchSummary = () => get<Summary>("/api/summary");
 export const fetchDfg = (objectType: string) =>
   get<Dfg>(`/api/dfg?type=${encodeURIComponent(objectType)}`);
 
+export interface VariantLead {
+  activities: string[];
+  count: number;
+  medianSecs: number;
+  meanSecs: number;
+  p90Secs: number;
+}
+
+export interface LeadTimeReport {
+  objectType: string;
+  measured: number;
+  medianSecs: number;
+  meanSecs: number;
+  p90Secs: number;
+  restMedianSecs: number;
+  restCount: number;
+  variants: VariantLead[];
+  rework: { activity: string; traces: number; extraOccurrences: number }[];
+}
+
+export const fetchLeadTimes = (objectType: string) =>
+  get<LeadTimeReport>(`/api/leadtimes?type=${encodeURIComponent(objectType)}`);
+
 export const fetchModel = (objectType: string) =>
   get<ProcessTree>(`/api/model?type=${encodeURIComponent(objectType)}`);
 

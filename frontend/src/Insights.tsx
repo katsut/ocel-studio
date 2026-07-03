@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { fetchDfg, fetchVariants, type Dfg, type VariantsResponse } from "./api.ts";
+import {
+  fetchDfg,
+  fetchLeadTimes,
+  fetchVariants,
+  type Dfg,
+  type LeadTimeReport,
+  type VariantsResponse,
+} from "./api.ts";
 import { useMessages } from "./i18n.tsx";
 
 interface Card {
@@ -27,17 +34,20 @@ export default function Insights({
   const t = useMessages();
   const [variants, setVariants] = useState<VariantsResponse | null>(null);
   const [dfg, setDfg] = useState<Dfg | null>(null);
+  const [leads, setLeads] = useState<LeadTimeReport | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([fetchVariants(objectType, 1), fetchDfg(objectType)])
-      .then(([v, d]) => {
+    Promise.all([fetchVariants(objectType, 1), fetchDfg(objectType), fetchLeadTimes(objectType)])
+      .then(([v, d, l]) => {
         setVariants(v);
         setDfg(d);
+        setLeads(l);
       })
       .catch(() => {
         setVariants(null);
         setDfg(null);
+        setLeads(null);
       });
   }, [objectType, modified]);
 
@@ -92,6 +102,23 @@ export default function Insights({
               t.duration(bottleneck.medianSecs),
             ),
       target: "flow-panel",
+    });
+  }
+
+  const happyLead = leads?.variants.find(
+    (v) => v.activities.join("\u0000") === top.activities.join("\u0000"),
+  );
+  if (leads && happyLead && leads.restCount > 0 && leads.restMedianSecs > happyLead.medianSecs) {
+    cards.push({
+      key: "path",
+      title: t.insightPathTitle,
+      figure: `+${t.duration(leads.restMedianSecs - happyLead.medianSecs)}`,
+      text: t.insightPath(
+        t.duration(happyLead.medianSecs),
+        t.duration(leads.restMedianSecs),
+        t.duration(leads.restMedianSecs - happyLead.medianSecs),
+      ),
+      target: "variants-panel",
     });
   }
 
