@@ -24,6 +24,15 @@ export interface Messages {
   loading: string;
   serverUnreachable: string;
   intro: string;
+  dataIntro: (start: string, end: string, events: string, type: string, objects: string) => string;
+  insightHappyTitle: string;
+  insightHappy: (type: string, pct: string, count: string, total: string, path: string) => string;
+  insightWaitTitle: string;
+  insightWait: (from: string, to: string, freq: string, dur: string) => string;
+  insightWaitLoop: (activity: string, freq: string, dur: string) => string;
+  insightExceptionTitle: string;
+  insightException: (pct: string, count: string) => string;
+  copyLabel: string;
   eventTypesHint: string;
   objectTypesHint: string;
   flowHint: string;
@@ -76,6 +85,20 @@ export const MESSAGES: Record<Lang, Messages> = {
     serverUnreachable: "server unreachable",
     intro:
       "This is your event log as a process: what happened, to which objects, in what order. Pick an object type in the panels below to follow its lifecycle.",
+    dataIntro: (start, end, events, type, objects) =>
+      `The data: ${events} events from ${start} to ${end}. The analysis below focuses on ${type} (${objects} objects).`,
+    insightHappyTitle: "Happy path",
+    insightHappy: (type, pct, count, total, path) =>
+      `${pct}% of ${type} (${count}/${total}) follow “${path}”.`,
+    insightWaitTitle: "Biggest bottleneck",
+    insightWait: (from, to, freq, dur) =>
+      `The most time is lost between ${from} → ${to}: ${freq} moves × median ${dur}.`,
+    insightWaitLoop: (activity, freq, dur) =>
+      `The most time is lost repeating ${activity}: ${freq} repeats × median ${dur}.`,
+    insightExceptionTitle: "Exceptions",
+    insightException: (pct, count) =>
+      `${pct}% (${count} objects) take a path other than the most common one.`,
+    copyLabel: "Copy this sentence",
     eventTypesHint: "The activities recorded in this log, and how often each happened.",
     objectTypesHint:
       "The entities flowing through the process. Every analysis below is per object type — one object's events form one trace.",
@@ -142,6 +165,20 @@ export const MESSAGES: Record<Lang, Messages> = {
     serverUnreachable: "サーバに接続できません",
     intro:
       "イベントログをプロセスとして表示しています — 何が・どのオブジェクトに・どの順で起きたか。下の各パネルでオブジェクト型を選ぶと、その型のライフサイクルを追えます。",
+    dataIntro: (start, end, events, type, objects) =>
+      `対象データ: ${start}〜${end} の ${events} イベント。以下は ${type}（${objects} 件）を中心にした分析です。`,
+    insightHappyTitle: "ハッピーパス",
+    insightHappy: (type, pct, count, total, path) =>
+      `${type} の ${pct}%（${count}/${total} 件）は「${path}」の順で完了する。`,
+    insightWaitTitle: "最大のボトルネック",
+    insightWait: (from, to, freq, dur) =>
+      `最も時間が失われているのは ${from} → ${to} — ${freq}回 × 中央値 ${dur}。`,
+    insightWaitLoop: (activity, freq, dur) =>
+      `最も時間が失われているのは ${activity} の繰り返し — ${freq}回 × 中央値 ${dur}。`,
+    insightExceptionTitle: "例外",
+    insightException: (pct, count) =>
+      `${pct}%（${count} 件）は最頻経路以外を通る。`,
+    copyLabel: "この文をコピー",
     eventTypesHint: "このログに記録されている活動と、それぞれの発生回数。",
     objectTypesHint:
       "プロセスを流れる実体。以下の分析はすべてこの型ごとに行われます — 1オブジェクトのイベント列が1トレースです。",

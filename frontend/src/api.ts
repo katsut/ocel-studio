@@ -3,6 +3,13 @@ export interface TypeCount {
   count: number;
 }
 
+export interface TypeStats {
+  objectType: string;
+  objects: number;
+  withEvents: number;
+  medianTraceLen: number;
+}
+
 export interface Summary {
   path: string;
   modified: string;
@@ -10,8 +17,31 @@ export interface Summary {
   objects: number;
   eventTypes: TypeCount[];
   objectTypes: TypeCount[];
+  typeStats: TypeStats[];
   timeRange: { start: string; end: string } | null;
   violations: string[];
+}
+
+/// The most case-like type: workable median trace length first, then the
+/// simplest lifecycle, best events coverage, most objects.
+export function caseLikeType(stats: TypeStats[]): string | null {
+  const workable = stats.filter(
+    (s) => s.withEvents > 0 && s.medianTraceLen >= 3 && s.medianTraceLen <= 20,
+  );
+  const pool = workable.length > 0 ? workable : stats.filter((s) => s.withEvents > 0);
+  if (pool.length === 0) {
+    return stats[0]?.objectType ?? null;
+  }
+  const coverage = (s: TypeStats) => s.withEvents / Math.max(1, s.objects);
+  return pool.reduce((best, s) => {
+    if (s.medianTraceLen !== best.medianTraceLen) {
+      return s.medianTraceLen < best.medianTraceLen ? s : best;
+    }
+    if (coverage(s) !== coverage(best)) {
+      return coverage(s) > coverage(best) ? s : best;
+    }
+    return s.objects > best.objects ? s : best;
+  }).objectType;
 }
 
 export interface RelatedObject {

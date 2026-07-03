@@ -173,9 +173,11 @@ interface Tip {
 
 export default function FlowPanel({
   types,
+  preferred,
   modified,
 }: {
   types: TypeCount[];
+  preferred: string;
   modified: string;
 }) {
   const t = useMessages();
@@ -186,10 +188,12 @@ export default function FlowPanel({
   const [tip, setTip] = useState<Tip | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const active =
-    selected !== "" && types.some((ty) => ty.name === selected)
-      ? selected
+  const fallback =
+    preferred !== "" && types.some((ty) => ty.name === preferred)
+      ? preferred
       : (types[0]?.name ?? "");
+  const active =
+    selected !== "" && types.some((ty) => ty.name === selected) ? selected : fallback;
 
   useEffect(() => {
     if (active === "") {
