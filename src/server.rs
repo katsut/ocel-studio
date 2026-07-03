@@ -143,16 +143,11 @@ fn window<'a>(log: &'a ocel::Ocel, range: &RangeQuery) -> Result<Cow<'a, ocel::O
         .map(parse_day)
         .transpose()?
         .map(|d| d.and_hms_opt(0, 0, 0).expect("midnight is valid").and_utc());
-    let to: Option<DateTime<Utc>> = range
-        .to
-        .as_deref()
-        .map(parse_day)
-        .transpose()?
-        .map(|d| {
-            d.and_hms_opt(23, 59, 59)
-                .expect("end of day is valid")
-                .and_utc()
-        });
+    let to: Option<DateTime<Utc>> = range.to.as_deref().map(parse_day).transpose()?.map(|d| {
+        d.and_hms_opt(23, 59, 59)
+            .expect("end of day is valid")
+            .and_utc()
+    });
     let events: Vec<ocel::Event> = log
         .events
         .iter()
