@@ -57,6 +57,7 @@ pub async fn run(path: PathBuf, port: u16) -> Result<(), Box<dyn Error>> {
     let app = Router::new()
         .route("/api/summary", get(summary))
         .route("/api/events", get(events))
+        .route("/api/variants", get(variants))
         .route("/api/status", get(status))
         .fallback(get(asset))
         .with_state(state);
@@ -249,6 +250,47 @@ async fn events(
         total: loaded.by_time.len(),
         offset: page.offset,
         items,
+    }))
+}
+
+#[derive(Deserialize)]
+struct VariantsQuery {
+    #[serde(rename = "type")]
+    object_type: String,
+    #[serde(default = "default_variants_limit")]
+    limit: usize,
+}
+
+fn default_variants_limit() -> usize {
+    50
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct VariantsResponse {
+    object_type: String,
+    objects: usize,
+    with_events: usize,
+    total_variants: usize,
+    variants: Vec<ocel_mine::Variant>,
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn variants(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<VariantsQuery>,
+) -> Result<Json<VariantsResponse>, ApiError> {
+    ensure_fresh(&state).await?;
+    let loaded = state.loaded.read().await;
+    let mut report = ocel_mine::variants(&loaded.log, &query.object_type);
+    let total_variants = report.variants.len();
+    report.variants.truncate(query.limit.min(MAX_PAGE));
+    Ok(Json(VariantsResponse {
+        object_type: report.object_type,
+        objects: report.objects,
+        with_events: report.with_events,
+        total_variants,
+        variants: report.variants,
     }))
 }
 

@@ -40,7 +40,26 @@ async function get<T>(url: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface VariantRow {
+  activities: string[];
+  count: number;
+  example: string;
+}
+
+export interface VariantsResponse {
+  objectType: string;
+  objects: number;
+  withEvents: number;
+  totalVariants: number;
+  variants: VariantRow[];
+}
+
 export const fetchSummary = () => get<Summary>("/api/summary");
+
+export const fetchVariants = (objectType: string, limit = 50) =>
+  get<VariantsResponse>(
+    `/api/variants?type=${encodeURIComponent(objectType)}&limit=${limit}`,
+  );
 
 export const fetchEvents = (offset: number, limit: number) =>
   get<EventsPage>(`/api/events?offset=${offset}&limit=${limit}`);
