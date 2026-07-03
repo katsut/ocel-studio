@@ -24,4 +24,5 @@ wildcards = "deny"
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = []
+# ocel-mine until its first crates.io release
+allow-git = ["https://github.com/katsut/ocel-mine"]

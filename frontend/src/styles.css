@@ -9,8 +9,23 @@
   --chip: #eef0fb;
 }
 
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #10141b;
+  --panel: #181e28;
+  --text: #e6e9ef;
+  --muted: #8b94a7;
+  --border: #2a3242;
+  --accent: #8b97f8;
+  --chip: #232c42;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #10141b;
     --panel: #181e28;
     --text: #e6e9ef;
@@ -212,4 +227,84 @@ th.num {
 .loading {
   padding: 40px;
   color: var(--muted);
+}
+
+.controls {
+  margin-left: 12px;
+  display: flex;
+  gap: 6px;
+}
+
+.controls button {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px 9px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.modified + .controls {
+  margin-left: 12px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel-head label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.panel select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.share {
+  white-space: nowrap;
+}
+
+.share span {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.bar {
+  display: inline-block;
+  vertical-align: middle;
+  width: 110px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--chip);
+  margin-right: 8px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+}
+
+.arrow {
+  color: var(--muted);
+  font-size: 12px;
 }
