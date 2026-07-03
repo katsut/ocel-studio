@@ -58,6 +58,7 @@ pub async fn run(path: PathBuf, port: u16) -> Result<(), Box<dyn Error>> {
         .route("/api/summary", get(summary))
         .route("/api/events", get(events))
         .route("/api/variants", get(variants))
+        .route("/api/dfg", get(dfg))
         .route("/api/status", get(status))
         .fallback(get(asset))
         .with_state(state);
@@ -292,6 +293,22 @@ async fn variants(
         total_variants,
         variants: report.variants,
     }))
+}
+
+#[derive(Deserialize)]
+struct DfgQuery {
+    #[serde(rename = "type")]
+    object_type: String,
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn dfg(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<DfgQuery>,
+) -> Result<Json<ocel_mine::Dfg>, ApiError> {
+    ensure_fresh(&state).await?;
+    let loaded = state.loaded.read().await;
+    Ok(Json(ocel_mine::dfg(&loaded.log, &query.object_type)))
 }
 
 #[derive(Serialize)]

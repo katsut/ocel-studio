@@ -304,6 +304,60 @@ th.num {
   background: var(--accent);
 }
 
+.flow-scroll {
+  overflow: auto;
+  max-height: 640px;
+}
+
+.flow-node {
+  fill: var(--chip);
+  stroke: var(--border);
+}
+
+.flow-node-label {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.flow-node-count {
+  fill: var(--muted);
+  font-size: 11px;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.flow-edge {
+  fill: none;
+  stroke: var(--muted);
+  opacity: 0.75;
+}
+
+.flow-edge-label {
+  fill: var(--muted);
+  font-size: 10px;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+}
+
+.flow-arrow {
+  fill: var(--muted);
+}
+
+.flow-start,
+.flow-end {
+  fill: var(--accent);
+}
+
+.flow-end-outer {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
 .arrow {
   color: var(--muted);
   font-size: 12px;
