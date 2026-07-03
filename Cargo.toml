@@ -1,0 +1,32 @@
+[package]
+name = "ocel-studio"
+version = "0.1.0"
+edition = "2021"
+license = "Elastic-2.0"
+publish = false
+repository = "https://github.com/katsut/ocel-studio"
+description = "Local-first process mining studio for OCEL 2.0 event logs"
+
+[dependencies]
+
+[lints.rust]
+unsafe_code = "forbid"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
+[profile.dev]
+opt-level = 0
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true
