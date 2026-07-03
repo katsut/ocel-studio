@@ -117,6 +117,13 @@ header {
   border-bottom: 1px solid var(--border);
 }
 
+.logo {
+  width: 22px;
+  height: 22px;
+  display: block;
+  border-radius: 5px;
+}
+
 .brand {
   font-weight: 700;
   color: var(--accent);
