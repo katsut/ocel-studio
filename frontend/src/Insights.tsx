@@ -5,6 +5,7 @@ import { useMessages } from "./i18n.tsx";
 interface Card {
   key: string;
   title: string;
+  figure: string;
   text: string;
   target: string;
 }
@@ -56,6 +57,7 @@ export default function Insights({
     {
       key: "happy",
       title: t.insightHappyTitle,
+      figure: `${happyPct}%`,
       text: t.insightHappy(
         objectType,
         happyPct,
@@ -75,6 +77,7 @@ export default function Insights({
     cards.push({
       key: "wait",
       title: t.insightWaitTitle,
+      figure: t.duration(bottleneck.medianSecs),
       text:
         bottleneck.from === bottleneck.to
           ? t.insightWaitLoop(
@@ -97,6 +100,7 @@ export default function Insights({
   cards.push({
     key: "exception",
     title: t.insightExceptionTitle,
+    figure: `${exceptionPct}%`,
     text: t.insightException(exceptionPct, exceptions.toLocaleString()),
     target: "variants-panel",
   });
@@ -117,6 +121,7 @@ export default function Insights({
           onClick={() => document.getElementById(card.target)?.scrollIntoView({ behavior: "smooth" })}
         >
           <div className="card-label">{card.title}</div>
+          <div className="insight-figure">{card.figure}</div>
           <p>{card.text}</p>
           <button
             className="insight-copy"

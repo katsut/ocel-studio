@@ -59,6 +59,7 @@ export interface Messages {
   moreVariants: (shown: number, total: number) => string;
   themeTitle: string;
   langTitle: string;
+  guidesTitle: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -141,6 +142,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     moreVariants: (shown, total) => `showing top ${shown} of ${total} variants`,
     themeTitle: "Theme",
     langTitle: "Language",
+    guidesTitle: "Reading guides",
   },
   ja: {
     events: "イベント",
@@ -221,6 +223,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     moreVariants: (shown, total) => `全 ${total} バリアント中 上位 ${shown} 件を表示`,
     themeTitle: "テーマ",
     langTitle: "言語",
+    guidesTitle: "読み方ガイド",
   },
 };
 
