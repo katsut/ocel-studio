@@ -73,7 +73,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     objects: "Objects",
     timeRange: "Time range",
     validation: "Validation",
-    valid: "valid",
+    valid: "well-formed OCEL",
     violations: (n) => `${n} violations`,
     eventTypes: "Event types",
     objectTypes: "Object types",
@@ -92,7 +92,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     intro:
       "This is your event log as a process: what happened, to which objects, in what order. Pick an object type in the panels below to follow its lifecycle.",
     dataIntro: (start, end, events, type, objects) =>
-      `The data: ${events} events from ${start} to ${end}. The analysis below focuses on ${type} (${objects} objects).`,
+      `Process discovery from ${events} recorded events (${start} – ${end}): how ${type} (${objects} objects) actually flowed — not how it was supposed to.`,
     insightHappyTitle: "Happy path",
     insightHappy: (type, pct, count, total, path) =>
       `${pct}% of ${type} (${count}/${total}) follow “${path}”.`,
@@ -159,7 +159,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     objects: "オブジェクト",
     timeRange: "期間",
     validation: "検証",
-    valid: "適合",
+    valid: "OCEL形式OK",
     violations: (n) => `違反 ${n} 件`,
     eventTypes: "活動の種類",
     objectTypes: "オブジェクトの種類",
@@ -178,7 +178,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     intro:
       "イベントログをプロセスとして表示しています — 何が・どのオブジェクトに・どの順で起きたか。下の各パネルでオブジェクト型を選ぶと、その型のライフサイクルを追えます。",
     dataIntro: (start, end, events, type, objects) =>
-      `対象データ: ${start}〜${end} の ${events} イベント。以下は ${type}（${objects} 件）を中心にした分析です。`,
+      `${start}〜${end} の記録 ${events} イベントからの「プロセス発見」です — ${type}（${objects} 件）が「本来どう動くべきか」ではなく「実際どう動いたか」を映します。`,
     insightHappyTitle: "ハッピーパス",
     insightHappy: (type, pct, count, total, path) =>
       `${type} の ${pct}%（${count}/${total} 件）は「${path}」の順で完了する。`,
