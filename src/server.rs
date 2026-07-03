@@ -32,6 +32,7 @@ struct Loaded {
     log: ocel::Ocel,
     by_time: Vec<usize>,
     violations: Vec<String>,
+    type_stats: Vec<ocel_mine::TypeStats>,
 }
 
 struct AppState {
@@ -80,11 +81,13 @@ fn load(path: &Path) -> Result<Loaded, Box<dyn Error>> {
         .iter()
         .map(ToString::to_string)
         .collect();
+    let type_stats = ocel_mine::type_stats(&log);
     Ok(Loaded {
         modified,
         log,
         by_time,
         violations,
+        type_stats,
     })
 }
 
@@ -132,6 +135,7 @@ struct Summary {
     objects: usize,
     event_types: Vec<TypeCount>,
     object_types: Vec<TypeCount>,
+    type_stats: Vec<ocel_mine::TypeStats>,
     time_range: Option<TimeRange>,
     violations: Vec<String>,
 }
@@ -178,6 +182,7 @@ async fn summary(State(state): State<Arc<AppState>>) -> Result<Json<Summary>, Ap
             log.object_types.iter().map(|t| t.name.as_str()),
             log.objects.iter().map(|o| o.object_type.as_str()),
         ),
+        type_stats: loaded.type_stats.clone(),
         time_range,
         violations: loaded.violations.clone(),
     }))

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  caseLikeType,
   fetchEvents,
   fetchStatus,
   fetchSummary,
@@ -7,6 +8,7 @@ import {
   type Summary,
   type TypeCount,
 } from "./api.ts";
+import Insights from "./Insights.tsx";
 import { I18nProvider, MESSAGES, useMessages, type Lang } from "./i18n.tsx";
 import {
   applyTheme,
@@ -172,6 +174,7 @@ function Dashboard({
   }, [summary, offset, refresh, t]);
 
   const fileName = summary ? (summary.path.split("/").pop() ?? summary.path) : "";
+  const preferred = summary ? (caseLikeType(summary.typeStats) ?? "") : "";
   return (
     <>
       <header>
@@ -197,6 +200,22 @@ function Dashboard({
       {summary && page ? (
         <main>
           <p className="muted intro">{t.intro}</p>
+          {preferred !== "" && summary.timeRange ? (
+            <p className="muted intro">
+              {t.dataIntro(
+                formatTime(summary.timeRange.start, lang),
+                formatTime(summary.timeRange.end, lang),
+                summary.events.toLocaleString(),
+                preferred,
+                (
+                  summary.typeStats.find((s) => s.objectType === preferred)?.objects ?? 0
+                ).toLocaleString(),
+              )}
+            </p>
+          ) : null}
+          {preferred !== "" ? (
+            <Insights objectType={preferred} modified={summary.modified} />
+          ) : null}
           <div className="cards">
             <StatCard label={t.events} value={summary.events.toLocaleString()} />
             <StatCard label={t.objects} value={summary.objects.toLocaleString()} />
@@ -226,9 +245,15 @@ function Dashboard({
             <TypeTable title={t.eventTypes} hint={t.eventTypesHint} rows={summary.eventTypes} />
             <TypeTable title={t.objectTypes} hint={t.objectTypesHint} rows={summary.objectTypes} />
           </div>
-          <FlowPanel types={summary.objectTypes} modified={summary.modified} />
-          <ModelPanel types={summary.objectTypes} modified={summary.modified} />
-          <VariantsPanel types={summary.objectTypes} modified={summary.modified} />
+          <div id="flow-panel">
+            <FlowPanel types={summary.objectTypes} preferred={preferred} modified={summary.modified} />
+          </div>
+          <div id="model-panel">
+            <ModelPanel types={summary.objectTypes} preferred={preferred} modified={summary.modified} />
+          </div>
+          <div id="variants-panel">
+            <VariantsPanel types={summary.objectTypes} preferred={preferred} modified={summary.modified} />
+          </div>
           <EventsPanel page={page} lang={lang} onPage={setOffset} />
         </main>
       ) : (

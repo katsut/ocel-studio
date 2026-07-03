@@ -33,9 +33,11 @@ function TreeNode({ tree }: { tree: ProcessTree }) {
 
 export default function ModelPanel({
   types,
+  preferred,
   modified,
 }: {
   types: TypeCount[];
+  preferred: string;
   modified: string;
 }) {
   const t = useMessages();
@@ -43,10 +45,12 @@ export default function ModelPanel({
   const [model, setModel] = useState<{ forType: string; tree: ProcessTree } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const active =
-    selected !== "" && types.some((ty) => ty.name === selected)
-      ? selected
+  const fallback =
+    preferred !== "" && types.some((ty) => ty.name === preferred)
+      ? preferred
       : (types[0]?.name ?? "");
+  const active =
+    selected !== "" && types.some((ty) => ty.name === selected) ? selected : fallback;
 
   useEffect(() => {
     if (active === "") {

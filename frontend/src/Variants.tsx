@@ -4,9 +4,11 @@ import { useMessages } from "./i18n.tsx";
 
 export default function VariantsPanel({
   types,
+  preferred,
   modified,
 }: {
   types: TypeCount[];
+  preferred: string;
   modified: string;
 }) {
   const t = useMessages();
@@ -14,10 +16,12 @@ export default function VariantsPanel({
   const [report, setReport] = useState<VariantsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const active =
-    selected !== "" && types.some((ty) => ty.name === selected)
-      ? selected
+  const fallback =
+    preferred !== "" && types.some((ty) => ty.name === preferred)
+      ? preferred
       : (types[0]?.name ?? "");
+  const active =
+    selected !== "" && types.some((ty) => ty.name === selected) ? selected : fallback;
 
   useEffect(() => {
     if (active === "") {
