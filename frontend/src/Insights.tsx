@@ -8,13 +8,14 @@ import {
   type VariantsResponse,
 } from "./api.ts";
 import { useMessages } from "./i18n.tsx";
+import type { Screen } from "./App.tsx";
 
 interface Card {
   key: string;
   title: string;
   figure: string;
   text: string;
-  target: string;
+  target: Screen;
 }
 
 function shortPath(activities: string[]): string {
@@ -27,9 +28,11 @@ function shortPath(activities: string[]): string {
 export default function Insights({
   objectType,
   modified,
+  onNavigate,
 }: {
   objectType: string;
   modified: string;
+  onNavigate: (screen: Screen) => void;
 }) {
   const t = useMessages();
   const [variants, setVariants] = useState<VariantsResponse | null>(null);
@@ -75,7 +78,7 @@ export default function Insights({
         variants.withEvents.toLocaleString(),
         shortPath(top.activities),
       ),
-      target: "variants-panel",
+      target: "paths",
     },
   ];
 
@@ -101,7 +104,7 @@ export default function Insights({
               bottleneck.frequency.toLocaleString(),
               t.duration(bottleneck.medianSecs),
             ),
-      target: "flow-panel",
+      target: "map",
     });
   }
 
@@ -118,7 +121,7 @@ export default function Insights({
         t.duration(leads.restMedianSecs),
         t.duration(leads.restMedianSecs - happyLead.medianSecs),
       ),
-      target: "variants-panel",
+      target: "paths",
     });
   }
 
@@ -129,7 +132,7 @@ export default function Insights({
     title: t.insightExceptionTitle,
     figure: `${exceptionPct}%`,
     text: t.insightException(exceptionPct, exceptions.toLocaleString()),
-    target: "variants-panel",
+    target: "paths",
   });
 
   const copy = (card: Card) => {
@@ -145,7 +148,7 @@ export default function Insights({
         <div
           key={card.key}
           className="insight-card"
-          onClick={() => document.getElementById(card.target)?.scrollIntoView({ behavior: "smooth" })}
+          onClick={() => onNavigate(card.target)}
         >
           <div className="card-label">{card.title}</div>
           <div className="insight-figure">{card.figure}</div>

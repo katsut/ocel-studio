@@ -68,6 +68,11 @@ export interface Messages {
   themeTitle: string;
   langTitle: string;
   guidesTitle: string;
+  navOverview: string;
+  navMap: string;
+  navPaths: string;
+  navModel: string;
+  navData: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -160,6 +165,11 @@ export const MESSAGES: Record<Lang, Messages> = {
     themeTitle: "Theme",
     langTitle: "Language",
     guidesTitle: "Reading guides",
+    navOverview: "Overview",
+    navMap: "Map",
+    navPaths: "Paths",
+    navModel: "Model",
+    navData: "Data",
   },
   ja: {
     events: "イベント",
@@ -250,6 +260,11 @@ export const MESSAGES: Record<Lang, Messages> = {
     themeTitle: "テーマ",
     langTitle: "言語",
     guidesTitle: "読み方ガイド",
+    navOverview: "概要",
+    navMap: "マップ",
+    navPaths: "経路",
+    navModel: "モデル",
+    navData: "データ",
   },
 };
 

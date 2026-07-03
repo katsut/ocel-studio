@@ -28,6 +28,8 @@ import VariantsPanel from "./Variants.tsx";
 const PAGE_SIZE = 50;
 const POLL_MS = 2000;
 
+export type Screen = "overview" | "map" | "paths" | "model" | "data";
+
 function formatTime(iso: string, lang: Lang): string {
   return new Date(iso).toLocaleString(lang === "ja" ? "ja-JP" : "en-US");
 }
@@ -140,6 +142,8 @@ function Dashboard({
   onGuides: (on: boolean) => void;
 }) {
   const t = useMessages();
+  const [screen, setScreen] = useState<Screen>("overview");
+  const [chosenType, setChosenType] = useState<string>("");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [page, setPage] = useState<EventsPage | null>(null);
   const [offset, setOffset] = useState(0);
@@ -175,15 +179,42 @@ function Dashboard({
 
   const fileName = summary ? (summary.path.split("/").pop() ?? summary.path) : "";
   const preferred = summary ? (caseLikeType(summary.typeStats) ?? "") : "";
+  const objectType =
+    summary && chosenType !== "" && summary.objectTypes.some((ty) => ty.name === chosenType)
+      ? chosenType
+      : preferred;
+
+  const nav: { key: Screen; label: string }[] = [
+    { key: "overview", label: t.navOverview },
+    { key: "map", label: t.navMap },
+    { key: "paths", label: t.navPaths },
+    { key: "model", label: t.navModel },
+    { key: "data", label: t.navData },
+  ];
+
   return (
     <>
       <header>
         <img className="logo" src="/favicon.svg" alt="" />
         <span className="brand">ocel-studio</span>
         {summary ? (
-          <span className="file" title={summary.path}>
-            {fileName}
-          </span>
+          <>
+            <span className="file" title={summary.path}>
+              {fileName}
+            </span>
+            <select
+              className="header-select"
+              title={t.objectTypeLabel}
+              value={objectType}
+              onChange={(e) => setChosenType(e.target.value)}
+            >
+              {summary.objectTypes.map((ty) => (
+                <option key={ty.name} value={ty.name}>
+                  {ty.name} ({ty.count.toLocaleString()})
+                </option>
+              ))}
+            </select>
+          </>
         ) : null}
         <span className="controls">
           <button
@@ -203,60 +234,79 @@ function Dashboard({
       </header>
       {error ? <div className="error">{error}</div> : null}
       {summary && page ? (
-        <main>
-          {preferred !== "" && summary.timeRange ? (
-            <p className="lead">
-              {t.dataIntro(
-                formatDate(summary.timeRange.start, lang),
-                formatDate(summary.timeRange.end, lang),
-                summary.events.toLocaleString(),
-                preferred,
-                (
-                  summary.typeStats.find((s) => s.objectType === preferred)?.objects ?? 0
-                ).toLocaleString(),
-              )}
-            </p>
-          ) : null}
-          <p className="meta-bar">
-            <span>
-              <strong>{summary.events.toLocaleString()}</strong> {t.events}
-            </span>
-            <span>
-              <strong>{summary.objects.toLocaleString()}</strong> {t.objects}
-            </span>
-            <span className={summary.violations.length === 0 ? "meta-ok" : "meta-warn"}>
-              {summary.violations.length === 0 ? `✓ ${t.valid}` : `⚠ ${t.violations(summary.violations.length)}`}
-            </span>
-            <span className="meta-updated">{t.updated(formatTime(summary.modified, lang))}</span>
-          </p>
-          {preferred !== "" ? (
-            <Insights objectType={preferred} modified={summary.modified} />
-          ) : null}
-          {summary.violations.length > 0 ? (
-            <details className="panel violations">
-              <summary>{t.violations(summary.violations.length)}</summary>
-              <ul>
-                {summary.violations.map((violation) => (
-                  <li key={violation}>{violation}</li>
-                ))}
-              </ul>
-            </details>
-          ) : null}
-          <div className="columns">
-            <TypeTable title={t.eventTypes} hint={t.eventTypesHint} rows={summary.eventTypes} />
-            <TypeTable title={t.objectTypes} hint={t.objectTypesHint} rows={summary.objectTypes} />
-          </div>
-          <div id="flow-panel">
-            <FlowPanel types={summary.objectTypes} preferred={preferred} modified={summary.modified} />
-          </div>
-          <div id="model-panel">
-            <ModelPanel types={summary.objectTypes} preferred={preferred} modified={summary.modified} />
-          </div>
-          <div id="variants-panel">
-            <VariantsPanel types={summary.objectTypes} preferred={preferred} modified={summary.modified} />
-          </div>
-          <EventsPanel page={page} lang={lang} onPage={setOffset} />
-        </main>
+        <div className="shell">
+          <nav className="sidebar">
+            {nav.map((item) => (
+              <button
+                key={item.key}
+                className={screen === item.key ? "nav-item nav-active" : "nav-item"}
+                onClick={() => setScreen(item.key)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+          <main>
+            {screen === "overview" ? (
+              <>
+                {objectType !== "" && summary.timeRange ? (
+                  <p className="lead">
+                    {t.dataIntro(
+                      formatDate(summary.timeRange.start, lang),
+                      formatDate(summary.timeRange.end, lang),
+                      summary.events.toLocaleString(),
+                      objectType,
+                      (
+                        summary.typeStats.find((s) => s.objectType === objectType)?.objects ?? 0
+                      ).toLocaleString(),
+                    )}
+                  </p>
+                ) : null}
+                <p className="meta-bar">
+                  <span>
+                    <strong>{summary.events.toLocaleString()}</strong> {t.events}
+                  </span>
+                  <span>
+                    <strong>{summary.objects.toLocaleString()}</strong> {t.objects}
+                  </span>
+                  <span className={summary.violations.length === 0 ? "meta-ok" : "meta-warn"}>
+                    {summary.violations.length === 0
+                      ? `✓ ${t.valid}`
+                      : `⚠ ${t.violations(summary.violations.length)}`}
+                  </span>
+                  <span className="meta-updated">{t.updated(formatTime(summary.modified, lang))}</span>
+                </p>
+                {objectType !== "" ? (
+                  <Insights objectType={objectType} modified={summary.modified} onNavigate={setScreen} />
+                ) : null}
+                {summary.violations.length > 0 ? (
+                  <details className="panel violations">
+                    <summary>{t.violations(summary.violations.length)}</summary>
+                    <ul>
+                      {summary.violations.map((violation) => (
+                        <li key={violation}>{violation}</li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+                <div className="columns">
+                  <TypeTable title={t.eventTypes} hint={t.eventTypesHint} rows={summary.eventTypes} />
+                  <TypeTable title={t.objectTypes} hint={t.objectTypesHint} rows={summary.objectTypes} />
+                </div>
+              </>
+            ) : null}
+            {screen === "map" && objectType !== "" ? (
+              <FlowPanel objectType={objectType} modified={summary.modified} />
+            ) : null}
+            {screen === "paths" && objectType !== "" ? (
+              <VariantsPanel objectType={objectType} modified={summary.modified} />
+            ) : null}
+            {screen === "model" && objectType !== "" ? (
+              <ModelPanel objectType={objectType} modified={summary.modified} />
+            ) : null}
+            {screen === "data" ? <EventsPanel page={page} lang={lang} onPage={setOffset} /> : null}
+          </main>
+        </div>
       ) : (
         <div className="loading">{error ?? t.intro}</div>
       )}

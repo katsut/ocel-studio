@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchModel, type ProcessTree, type TypeCount } from "./api.ts";
+import { fetchModel, type ProcessTree } from "./api.ts";
 import { useMessages } from "./i18n.tsx";
 
 const OPERATOR: Record<string, string> = {
@@ -43,58 +43,36 @@ function TreeNode({ tree }: { tree: ProcessTree }) {
 }
 
 export default function ModelPanel({
-  types,
-  preferred,
+  objectType,
   modified,
 }: {
-  types: TypeCount[];
-  preferred: string;
+  objectType: string;
   modified: string;
 }) {
   const t = useMessages();
-  const [selected, setSelected] = useState<string>("");
   const [model, setModel] = useState<{ forType: string; tree: ProcessTree } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fallback =
-    preferred !== "" && types.some((ty) => ty.name === preferred)
-      ? preferred
-      : (types[0]?.name ?? "");
-  const active =
-    selected !== "" && types.some((ty) => ty.name === selected) ? selected : fallback;
 
   useEffect(() => {
-    if (active === "") {
+    if (objectType === "") {
       return;
     }
-    fetchModel(active)
+    fetchModel(objectType)
       .then((tree) => {
-        setModel({ forType: active, tree });
+        setModel({ forType: objectType, tree });
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [active, modified]);
+  }, [objectType, modified]);
 
-  if (active === "") {
-    return null;
-  }
-  return (
+    return (
     <div className="panel">
       <div className="panel-head">
         <h2>{t.modelPanel}</h2>
-        <label>
-          {t.objectTypeLabel}{" "}
-          <select value={active} onChange={(e) => setSelected(e.target.value)}>
-            {types.map((ty) => (
-              <option key={ty.name} value={ty.name}>
-                {ty.name} ({ty.count.toLocaleString()})
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
       {error ? <div className="error">{error}</div> : null}
-      {model && model.forType === active ? (
+      {model && model.forType === objectType ? (
         <div className="tree-scroll">
           <TreeNode tree={model.tree} />
         </div>

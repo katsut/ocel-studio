@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { graphlib, layout } from "@dagrejs/dagre";
-import { fetchDfg, type Dfg, type DfgEdge, type DfgNode, type TypeCount } from "./api.ts";
+import { fetchDfg, type Dfg, type DfgEdge, type DfgNode } from "./api.ts";
 import { useMessages, type Messages } from "./i18n.tsx";
 
 const NODE_H = 40;
@@ -172,45 +172,33 @@ interface Tip {
 }
 
 export default function FlowPanel({
-  types,
-  preferred,
+  objectType,
   modified,
 }: {
-  types: TypeCount[];
-  preferred: string;
+  objectType: string;
   modified: string;
 }) {
   const t = useMessages();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [selected, setSelected] = useState<string>("");
   const [detail, setDetail] = useState(0);
   const [dfg, setDfg] = useState<Dfg | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fallback =
-    preferred !== "" && types.some((ty) => ty.name === preferred)
-      ? preferred
-      : (types[0]?.name ?? "");
-  const active =
-    selected !== "" && types.some((ty) => ty.name === selected) ? selected : fallback;
 
   useEffect(() => {
-    if (active === "") {
+    if (objectType === "") {
       return;
     }
-    fetchDfg(active)
+    fetchDfg(objectType)
       .then((d) => {
         setDfg(d);
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [active, modified]);
+  }, [objectType, modified]);
 
-  if (active === "") {
-    return null;
-  }
-  const filtered = dfg && dfg.objectType === active ? filterEdges(dfg, detail) : null;
+    const filtered = dfg && dfg.objectType === objectType ? filterEdges(dfg, detail) : null;
   const laid = filtered ? buildLayout(filtered, t) : null;
 
   const place = (event: React.MouseEvent, title: string, lines: string[]) => {
@@ -263,16 +251,6 @@ export default function FlowPanel({
               value={Math.round(detail * 100)}
               onChange={(e) => setDetail(Number(e.target.value) / 100)}
             />
-          </label>
-          <label>
-            {t.objectTypeLabel}{" "}
-            <select value={active} onChange={(e) => setSelected(e.target.value)}>
-              {types.map((ty) => (
-                <option key={ty.name} value={ty.name}>
-                  {ty.name} ({ty.count.toLocaleString()})
-                </option>
-              ))}
-            </select>
           </label>
         </span>
       </div>
