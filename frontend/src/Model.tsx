@@ -90,7 +90,7 @@ export default function ModelPanel({
       ) : (
         <div className="loading">{t.loading}</div>
       )}
-      <p className="muted">{t.modelHint}</p>
+      <p className="muted guide">{t.modelHint}</p>
     </div>
   );
 }

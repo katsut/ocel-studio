@@ -11,7 +11,9 @@ import {
 import Insights from "./Insights.tsx";
 import { I18nProvider, MESSAGES, useMessages, type Lang } from "./i18n.tsx";
 import {
+  applyGuides,
   applyTheme,
+  loadGuides,
   loadLang,
   loadTheme,
   nextTheme,
@@ -30,14 +32,8 @@ function formatTime(iso: string, lang: Lang): string {
   return new Date(iso).toLocaleString(lang === "ja" ? "ja-JP" : "en-US");
 }
 
-function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="card">
-      <div className="card-label">{label}</div>
-      <div className="card-value">{value}</div>
-      {hint ? <div className="card-hint">{hint}</div> : null}
-    </div>
-  );
+function formatDate(iso: string, lang: Lang): string {
+  return new Date(iso).toLocaleDateString(lang === "ja" ? "ja-JP" : "en-US");
 }
 
 function TypeTable({ title, hint, rows }: { title: string; hint: string; rows: TypeCount[] }) {
@@ -45,7 +41,7 @@ function TypeTable({ title, hint, rows }: { title: string; hint: string; rows: T
   return (
     <div className="panel">
       <h2>{title}</h2>
-      <p className="muted">{hint}</p>
+      <p className="muted guide">{hint}</p>
       <table>
         <thead>
           <tr>
@@ -83,7 +79,7 @@ function EventsPanel({
   return (
     <div className="panel">
       <h2>{t.eventsPanel}</h2>
-      <p className="muted">{t.eventsHint}</p>
+      <p className="muted guide">{t.eventsHint}</p>
       <table>
         <thead>
           <tr>
@@ -131,13 +127,17 @@ function EventsPanel({
 function Dashboard({
   lang,
   theme,
+  guides,
   onLang,
   onTheme,
+  onGuides,
 }: {
   lang: Lang;
   theme: Theme;
+  guides: boolean;
   onLang: (lang: Lang) => void;
   onTheme: (theme: Theme) => void;
+  onGuides: (on: boolean) => void;
 }) {
   const t = useMessages();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -180,14 +180,18 @@ function Dashboard({
       <header>
         <span className="brand">ocel-studio</span>
         {summary ? (
-          <>
-            <span className="file" title={summary.path}>
-              {fileName}
-            </span>
-            <span className="modified">{t.updated(formatTime(summary.modified, lang))}</span>
-          </>
+          <span className="file" title={summary.path}>
+            {fileName}
+          </span>
         ) : null}
         <span className="controls">
+          <button
+            title={t.guidesTitle}
+            className={guides ? "toggle-on" : undefined}
+            onClick={() => onGuides(!guides)}
+          >
+            ⓘ
+          </button>
           <button title={t.themeTitle} onClick={() => onTheme(nextTheme(theme))}>
             {themeIcon(theme)}
           </button>
@@ -199,12 +203,11 @@ function Dashboard({
       {error ? <div className="error">{error}</div> : null}
       {summary && page ? (
         <main>
-          <p className="muted intro">{t.intro}</p>
           {preferred !== "" && summary.timeRange ? (
-            <p className="muted intro">
+            <p className="lead">
               {t.dataIntro(
-                formatTime(summary.timeRange.start, lang),
-                formatTime(summary.timeRange.end, lang),
+                formatDate(summary.timeRange.start, lang),
+                formatDate(summary.timeRange.end, lang),
                 summary.events.toLocaleString(),
                 preferred,
                 (
@@ -213,24 +216,21 @@ function Dashboard({
               )}
             </p>
           ) : null}
+          <p className="meta-bar">
+            <span>
+              <strong>{summary.events.toLocaleString()}</strong> {t.events}
+            </span>
+            <span>
+              <strong>{summary.objects.toLocaleString()}</strong> {t.objects}
+            </span>
+            <span className={summary.violations.length === 0 ? "meta-ok" : "meta-warn"}>
+              {summary.violations.length === 0 ? `✓ ${t.valid}` : `⚠ ${t.violations(summary.violations.length)}`}
+            </span>
+            <span className="meta-updated">{t.updated(formatTime(summary.modified, lang))}</span>
+          </p>
           {preferred !== "" ? (
             <Insights objectType={preferred} modified={summary.modified} />
           ) : null}
-          <div className="cards">
-            <StatCard label={t.events} value={summary.events.toLocaleString()} />
-            <StatCard label={t.objects} value={summary.objects.toLocaleString()} />
-            <StatCard
-              label={t.timeRange}
-              value={summary.timeRange ? formatTime(summary.timeRange.start, lang) : "—"}
-              hint={summary.timeRange ? `→ ${formatTime(summary.timeRange.end, lang)}` : undefined}
-            />
-            <StatCard
-              label={t.validation}
-              value={
-                summary.violations.length === 0 ? t.valid : t.violations(summary.violations.length)
-              }
-            />
-          </div>
           {summary.violations.length > 0 ? (
             <details className="panel violations">
               <summary>{t.violations(summary.violations.length)}</summary>
@@ -257,7 +257,7 @@ function Dashboard({
           <EventsPanel page={page} lang={lang} onPage={setOffset} />
         </main>
       ) : (
-        <div className="loading">{error ?? t.loading}</div>
+        <div className="loading">{error ?? t.intro}</div>
       )}
     </>
   );
@@ -266,10 +266,15 @@ function Dashboard({
 export default function App() {
   const [lang, setLang] = useState<Lang>(loadLang);
   const [theme, setTheme] = useState<Theme>(loadTheme);
+  const [guides, setGuides] = useState<boolean>(loadGuides);
 
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    applyGuides(guides);
+  }, [guides]);
 
   const changeLang = (next: Lang) => {
     saveLang(next);
@@ -278,7 +283,14 @@ export default function App() {
 
   return (
     <I18nProvider value={MESSAGES[lang]}>
-      <Dashboard lang={lang} theme={theme} onLang={changeLang} onTheme={setTheme} />
+      <Dashboard
+        lang={lang}
+        theme={theme}
+        guides={guides}
+        onLang={changeLang}
+        onTheme={setTheme}
+        onGuides={setGuides}
+      />
     </I18nProvider>
   );
 }

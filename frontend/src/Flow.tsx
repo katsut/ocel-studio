@@ -276,12 +276,10 @@ export default function FlowPanel({
           </label>
         </span>
       </div>
-      <p className="muted">
-        {t.flowHint}
-        {dfg && filtered && filtered.edges.length < dfg.edges.length
-          ? ` ${t.edgesShown(filtered.edges.length, dfg.edges.length)}`
-          : ""}
-      </p>
+      <p className="muted guide">{t.flowHint}</p>
+      {dfg && filtered && filtered.edges.length < dfg.edges.length ? (
+        <p className="muted">{t.edgesShown(filtered.edges.length, dfg.edges.length)}</p>
+      ) : null}
       {error ? <div className="error">{error}</div> : null}
       {laid ? (
         <div className="flow-scroll" ref={scrollRef} onMouseLeave={() => setTip(null)}>

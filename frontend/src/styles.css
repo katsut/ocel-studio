@@ -88,13 +88,31 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+p {
+  text-wrap: pretty;
+  word-break: auto-phrase;
+}
+
+button,
+select {
+  font-family: inherit;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
-  padding: 14px 24px;
+  padding: 12px 24px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
@@ -106,6 +124,10 @@ header {
 
 .file {
   font-weight: 600;
+  font-size: 14px;
+  background: var(--chip);
+  border-radius: var(--radius-s);
+  padding: 3px 10px;
 }
 
 .modified {
@@ -117,10 +139,44 @@ header {
 main {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 20px 24px 48px;
+  padding: 28px 24px 64px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
+}
+
+.lead {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.meta-bar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin: -6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.meta-bar strong {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-ok {
+  color: var(--status-good);
+}
+
+.meta-warn {
+  color: var(--status-serious);
+}
+
+.meta-updated {
+  margin-left: auto;
 }
 
 .cards {
@@ -132,23 +188,38 @@ main {
 .insights {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
+  grid-auto-rows: 1fr;
+  gap: var(--space-3);
 }
 
 .insight-card {
   position: relative;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
   border-radius: var(--radius-l);
-  padding: 12px 36px 12px 14px;
+  padding: 14px 40px 14px 16px;
   cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.insight-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.insight-figure {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 2px 0 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 .insight-card p {
-  margin: 6px 0 0;
-  font-size: 14px;
-  line-height: 1.6;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--muted);
 }
 
 .insight-copy {
@@ -209,8 +280,8 @@ main {
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
+  border-radius: var(--radius-l);
+  padding: 18px 20px;
   overflow-x: auto;
 }
 
@@ -240,6 +311,10 @@ th {
   color: var(--muted);
   font-weight: 600;
   font-size: 12px;
+}
+
+tbody tr:hover td {
+  background: color-mix(in srgb, var(--chip) 45%, transparent);
 }
 
 td.num,
@@ -323,12 +398,23 @@ th.num {
 
 .controls button {
   background: var(--panel);
-  color: var(--text);
+  color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 3px 9px;
+  border-radius: var(--radius-m);
+  min-width: 32px;
+  height: 28px;
   cursor: pointer;
   font-size: 13px;
+}
+
+.controls button:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.controls button.toggle-on {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .modified + .controls {
@@ -337,7 +423,7 @@ th.num {
 
 .panel-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
@@ -372,8 +458,13 @@ th.num {
 
 .muted {
   color: var(--muted);
-  font-size: 13px;
-  margin: 8px 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 6px 0 10px;
+}
+
+:root[data-guides="off"] .guide {
+  display: none;
 }
 
 .intro {

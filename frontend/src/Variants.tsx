@@ -53,7 +53,7 @@ export default function VariantsPanel({
           </select>
         </label>
       </div>
-      <p className="muted">{t.variantsHint}</p>
+      <p className="muted guide">{t.variantsHint}</p>
       {error ? <div className="error">{error}</div> : null}
       {report && report.objectType === active ? (
         <>

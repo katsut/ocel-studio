@@ -25,6 +25,17 @@ export const nextTheme = (theme: Theme): Theme =>
 export const themeIcon = (theme: Theme): string =>
   theme === "system" ? "🖥" : theme === "light" ? "☀️" : "🌙";
 
+const GUIDES_KEY = "ocel-studio:guides";
+
+export function loadGuides(): boolean {
+  return localStorage.getItem(GUIDES_KEY) !== "off";
+}
+
+export function applyGuides(on: boolean): void {
+  localStorage.setItem(GUIDES_KEY, on ? "on" : "off");
+  document.documentElement.dataset.guides = on ? "on" : "off";
+}
+
 export function loadLang(): Lang {
   const saved = localStorage.getItem(LANG_KEY);
   if (saved === "en" || saved === "ja") {
