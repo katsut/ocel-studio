@@ -7,6 +7,33 @@
   --border: #e4e7ec;
   --accent: #4657d8;
   --chip: #eef0fb;
+
+  /* status — fixed, never themed, never a data series */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  /* categorical data series — fixed order, never cycled (docs/design/design-system.md) */
+  --cat-1: #2a78d6;
+  --cat-2: #1baf7a;
+  --cat-3: #eda100;
+  --cat-4: #008300;
+  --cat-5: #4a3aa7;
+  --cat-6: #e34948;
+  --cat-7: #e87ba4;
+  --cat-8: #eb6834;
+
+  /* layout */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --radius-s: 6px;
+  --radius-m: 8px;
+  --radius-l: 10px;
+  --shadow-pop: 0 6px 24px rgba(0, 0, 0, 0.18);
 }
 
 :root[data-theme="light"] {
@@ -22,6 +49,14 @@
   --border: #2a3242;
   --accent: #8b97f8;
   --chip: #232c42;
+  --cat-1: #3987e5;
+  --cat-2: #199e70;
+  --cat-3: #c98500;
+  --cat-4: #008300;
+  --cat-5: #9085e9;
+  --cat-6: #e66767;
+  --cat-7: #d55181;
+  --cat-8: #d95926;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,6 +68,14 @@
     --border: #2a3242;
     --accent: #8b97f8;
     --chip: #232c42;
+    --cat-1: #3987e5;
+    --cat-2: #199e70;
+    --cat-3: #c98500;
+    --cat-4: #008300;
+    --cat-5: #9085e9;
+    --cat-6: #e66767;
+    --cat-7: #d55181;
+    --cat-8: #d95926;
   }
 }
 
@@ -210,16 +253,20 @@ th.num {
   cursor: default;
 }
 
+.violations {
+  border-left: 3px solid var(--status-warning);
+}
+
 .violations summary {
   cursor: pointer;
-  color: #b54708;
+  font-weight: 600;
 }
 
 .error {
-  background: #fee4e2;
-  color: #b42318;
-  border: 1px solid #fda29b;
-  border-radius: 8px;
+  background: color-mix(in srgb, var(--status-critical) 12%, var(--panel));
+  color: var(--status-critical);
+  border: 1px solid var(--status-critical);
+  border-radius: var(--radius-m);
   padding: 10px 14px;
   margin: 12px 24px 0;
 }
@@ -319,7 +366,7 @@ th.num {
 .bar-fill {
   height: 100%;
   border-radius: 4px;
-  background: var(--accent);
+  background: var(--cat-1);
 }
 
 .flow-scroll {
@@ -344,8 +391,8 @@ th.num {
   max-width: 320px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-pop);
   padding: 10px 12px;
   font-size: 12.5px;
   color: var(--muted);
