@@ -5,6 +5,7 @@ import {
   fetchEvents,
   fetchStatus,
   fetchSummary,
+  type CaseFilter,
   type EventsPage,
   type Summary,
   type TypeCount,
@@ -146,7 +147,7 @@ function Dashboard({
   const t = useMessages();
   const [screen, setScreen] = useState<Screen>("overview");
   const [chosenType, setChosenType] = useState<string>("");
-  const [variantFilter, setVariantFilter] = useState<string[] | null>(null);
+  const [caseFilter, setCaseFilter] = useState<CaseFilter | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [page, setPage] = useState<EventsPage | null>(null);
   const [offset, setOffset] = useState(0);
@@ -213,7 +214,7 @@ function Dashboard({
               value={objectType}
               onChange={(e) => {
                 setChosenType(e.target.value);
-                setVariantFilter(null);
+                setCaseFilter(null);
               }}
             >
               {summary.objectTypes.map((ty) => (
@@ -304,14 +305,21 @@ function Dashboard({
               </>
             ) : null}
             {screen === "map" && objectType !== "" ? (
-              <FlowPanel objectType={objectType} modified={summary.modified} />
+              <FlowPanel
+                objectType={objectType}
+                modified={summary.modified}
+                onShowCases={(from, to) => {
+                  setCaseFilter({ kind: "edge", from, to });
+                  setScreen("cases");
+                }}
+              />
             ) : null}
             {screen === "paths" && objectType !== "" ? (
               <VariantsPanel
                 objectType={objectType}
                 modified={summary.modified}
                 onShowCases={(activities) => {
-                  setVariantFilter(activities);
+                  setCaseFilter({ kind: "variant", activities });
                   setScreen("cases");
                 }}
               />
@@ -321,8 +329,8 @@ function Dashboard({
                 objectType={objectType}
                 modified={summary.modified}
                 lang={lang}
-                variantFilter={variantFilter}
-                onClearFilter={() => setVariantFilter(null)}
+                filter={caseFilter}
+                onClearFilter={() => setCaseFilter(null)}
               />
             ) : null}
             {screen === "model" && objectType !== "" ? (

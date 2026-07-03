@@ -326,6 +326,8 @@ struct CasesQuery {
     object_type: String,
     /// Activity sequence joined by the unit separator (U+001F).
     variant: Option<String>,
+    /// A single transition "from<U+001F>to"; matches consecutive steps.
+    edge: Option<String>,
     #[serde(default)]
     offset: usize,
     #[serde(default = "default_limit")]
@@ -348,17 +350,22 @@ async fn cases(
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
     let all = ocel_mine::cases(&loaded.log, &query.object_type);
-    let filtered: Vec<ocel_mine::CaseSummary> = match &query.variant {
-        Some(joined) => {
-            let want: Vec<&str> = joined.split('\u{1f}').collect();
-            all.into_iter()
-                .filter(|c| {
-                    c.activities.len() == want.len()
-                        && c.activities.iter().zip(&want).all(|(a, b)| a == b)
-                })
-                .collect()
-        }
-        None => all,
+    let filtered: Vec<ocel_mine::CaseSummary> = if let Some(joined) = &query.variant {
+        let want: Vec<&str> = joined.split('\u{1f}').collect();
+        all.into_iter()
+            .filter(|c| {
+                c.activities.len() == want.len()
+                    && c.activities.iter().zip(&want).all(|(a, b)| a == b)
+            })
+            .collect()
+    } else if let Some(pair) = &query.edge {
+        let mut split = pair.split('\u{1f}');
+        let (from, to) = (split.next().unwrap_or(""), split.next().unwrap_or(""));
+        all.into_iter()
+            .filter(|c| c.activities.windows(2).any(|w| w[0] == from && w[1] == to))
+            .collect()
+    } else {
+        all
     };
     let total = filtered.len();
     let items = filtered

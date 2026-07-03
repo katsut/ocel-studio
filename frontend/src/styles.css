@@ -643,11 +643,32 @@ th.num {
   background: var(--cat-1);
 }
 
+.map-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
 .flow-scroll {
+  flex: 1;
+  min-width: 0;
   overflow: auto;
   max-height: calc(100vh - 230px);
   min-height: 420px;
   position: relative;
+}
+
+.sel-panel {
+  flex: 0 0 270px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+  padding: 12px 14px;
+}
+
+.sel-title {
+  font-weight: 700;
+  font-size: 14px;
 }
 
 .flow-hover {
