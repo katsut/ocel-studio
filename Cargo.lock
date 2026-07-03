@@ -584,7 +584,7 @@ dependencies = [
 [[package]]
 name = "ocel-mine"
 version = "0.1.0"
-source = "git+https://github.com/katsut/ocel-mine#bdc5204658491c3031cae7731aa17d0dbac3d3d9"
+source = "git+https://github.com/katsut/ocel-mine#24efafe39380e88e6987d72a0420116ac5aa345e"
 dependencies = [
  "chrono",
  "ocel",

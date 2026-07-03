@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { fetchVariants, type TypeCount, type VariantsResponse } from "./api.ts";
+import {
+  fetchLeadTimes,
+  fetchVariants,
+  type LeadTimeReport,
+  type TypeCount,
+  type VariantsResponse,
+} from "./api.ts";
 import { useMessages } from "./i18n.tsx";
 
 export default function VariantsPanel({
@@ -14,6 +20,7 @@ export default function VariantsPanel({
   const t = useMessages();
   const [selected, setSelected] = useState<string>("");
   const [report, setReport] = useState<VariantsResponse | null>(null);
+  const [leads, setLeads] = useState<LeadTimeReport | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fallback =
@@ -27,9 +34,10 @@ export default function VariantsPanel({
     if (active === "") {
       return;
     }
-    fetchVariants(active)
-      .then((r) => {
+    Promise.all([fetchVariants(active), fetchLeadTimes(active)])
+      .then(([r, l]) => {
         setReport(r);
+        setLeads(l);
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
@@ -68,6 +76,7 @@ export default function VariantsPanel({
               <tr>
                 <th className="num">{t.countCol}</th>
                 <th>{t.shareCol}</th>
+                <th className="num">{t.leadCol}</th>
                 <th>{t.sequenceCol}</th>
               </tr>
             </thead>
@@ -75,6 +84,9 @@ export default function VariantsPanel({
               {report.variants.map((variant) => {
                 const share =
                   report.withEvents === 0 ? 0 : variant.count / report.withEvents;
+                const lead = leads?.variants.find(
+                  (v) => v.activities.join("\u0000") === variant.activities.join("\u0000"),
+                );
                 return (
                   <tr key={variant.activities.join("→")}>
                     <td className="num">{variant.count.toLocaleString()}</td>
@@ -87,6 +99,7 @@ export default function VariantsPanel({
                       </div>
                       <span>{(share * 100).toFixed(1)}%</span>
                     </td>
+                    <td className="num">{lead ? t.duration(lead.medianSecs) : "—"}</td>
                     <td>
                       {variant.activities.map((activity, i) => (
                         <span key={`${activity}-${i}`}>
