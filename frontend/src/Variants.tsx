@@ -3,67 +3,44 @@ import {
   fetchLeadTimes,
   fetchVariants,
   type LeadTimeReport,
-  type TypeCount,
   type VariantsResponse,
 } from "./api.ts";
 import { useMessages } from "./i18n.tsx";
 
 export default function VariantsPanel({
-  types,
-  preferred,
+  objectType,
   modified,
 }: {
-  types: TypeCount[];
-  preferred: string;
+  objectType: string;
   modified: string;
 }) {
   const t = useMessages();
-  const [selected, setSelected] = useState<string>("");
   const [report, setReport] = useState<VariantsResponse | null>(null);
   const [leads, setLeads] = useState<LeadTimeReport | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fallback =
-    preferred !== "" && types.some((ty) => ty.name === preferred)
-      ? preferred
-      : (types[0]?.name ?? "");
-  const active =
-    selected !== "" && types.some((ty) => ty.name === selected) ? selected : fallback;
 
   useEffect(() => {
-    if (active === "") {
+    if (objectType === "") {
       return;
     }
-    Promise.all([fetchVariants(active), fetchLeadTimes(active)])
+    Promise.all([fetchVariants(objectType), fetchLeadTimes(objectType)])
       .then(([r, l]) => {
         setReport(r);
         setLeads(l);
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [active, modified]);
+  }, [objectType, modified]);
 
-  if (active === "") {
-    return null;
-  }
-  return (
+    return (
     <div className="panel">
       <div className="panel-head">
         <h2>{t.variantsPanel}</h2>
-        <label>
-          {t.objectTypeLabel}{" "}
-          <select value={active} onChange={(e) => setSelected(e.target.value)}>
-            {types.map((ty) => (
-              <option key={ty.name} value={ty.name}>
-                {ty.name} ({ty.count.toLocaleString()})
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
       <p className="muted guide">{t.variantsHint}</p>
       {error ? <div className="error">{error}</div> : null}
-      {report && report.objectType === active ? (
+      {report && report.objectType === objectType ? (
         <>
           <p className="muted">
             {t.coverage(
