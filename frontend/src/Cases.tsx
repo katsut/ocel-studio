@@ -3,6 +3,7 @@ import {
   fetchCase,
   fetchCases,
   type CaseDetail,
+  type CaseFilter,
   type CasesPage,
 } from "./api.ts";
 import { useMessages } from "./i18n.tsx";
@@ -66,13 +67,13 @@ export default function CasesPanel({
   objectType,
   modified,
   lang,
-  variantFilter,
+  filter,
   onClearFilter,
 }: {
   objectType: string;
   modified: string;
   lang: Lang;
-  variantFilter: string[] | null;
+  filter: CaseFilter | null;
   onClearFilter: () => void;
 }) {
   const t = useMessages();
@@ -84,16 +85,16 @@ export default function CasesPanel({
   useEffect(() => {
     setOffset(0);
     setDetail(null);
-  }, [objectType, variantFilter]);
+  }, [objectType, filter]);
 
   useEffect(() => {
-    fetchCases(objectType, variantFilter, offset, PAGE_SIZE)
+    fetchCases(objectType, filter, offset, PAGE_SIZE)
       .then((p) => {
         setPage(p);
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [objectType, variantFilter, offset, modified]);
+  }, [objectType, filter, offset, modified]);
 
   const open = (id: string) => {
     fetchCase(id)
@@ -111,9 +112,12 @@ export default function CasesPanel({
     <div className="panel">
       <div className="panel-head">
         <h2>{t.casesPanel}</h2>
-        {variantFilter ? (
+        {filter ? (
           <button className="filter-chip" onClick={onClearFilter} title={t.clearFilter}>
-            {t.filterVariant(shortPath(variantFilter))} ✕
+            {filter.kind === "variant"
+              ? t.filterVariant(shortPath(filter.activities))
+              : t.filterEdge(filter.from, filter.to)}{" "}
+            ✕
           </button>
         ) : null}
       </div>

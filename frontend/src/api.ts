@@ -178,17 +178,24 @@ export interface CaseDetail {
   items: EventRow[];
 }
 
+export type CaseFilter =
+  | { kind: "variant"; activities: string[] }
+  | { kind: "edge"; from: string; to: string };
+
 export const fetchCases = (
   objectType: string,
-  variant: string[] | null,
+  filter: CaseFilter | null,
   offset: number,
   limit: number,
 ) => {
-  const filter = variant
-    ? `&variant=${encodeURIComponent(variant.join("\u001f"))}`
-    : "";
+  let extra = "";
+  if (filter?.kind === "variant") {
+    extra = `&variant=${encodeURIComponent(filter.activities.join("\u001f"))}`;
+  } else if (filter?.kind === "edge") {
+    extra = `&edge=${encodeURIComponent(`${filter.from}\u001f${filter.to}`)}`;
+  }
   return get<CasesPage>(
-    `/api/cases?type=${encodeURIComponent(objectType)}${filter}&offset=${offset}&limit=${limit}`,
+    `/api/cases?type=${encodeURIComponent(objectType)}${extra}&offset=${offset}&limit=${limit}`,
   );
 };
 

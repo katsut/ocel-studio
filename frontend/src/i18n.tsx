@@ -76,6 +76,9 @@ export interface Messages {
   caseStepsCol: string;
   showCases: string;
   filterVariant: (path: string) => string;
+  filterEdge: (from: string, to: string) => string;
+  selectionHint: string;
+  closeLabel: string;
   clearFilter: string;
   backToCases: string;
   caseTimelineHint: string;
@@ -183,6 +186,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     caseStepsCol: "Steps",
     showCases: "Cases",
     filterVariant: (path) => `Path: ${path}`,
+    filterEdge: (from, to) => `Move: ${from} → ${to}`,
+    selectionHint: "Click an activity or an arrow for its numbers.",
+    closeLabel: "Close",
     clearFilter: "Clear the filter",
     backToCases: "Back to the list",
     caseTimelineHint:
@@ -289,6 +295,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     caseStepsCol: "ステップ",
     showCases: "ケース",
     filterVariant: (path) => `経路: ${path}`,
+    filterEdge: (from, to) => `移動: ${from} → ${to}`,
+    selectionHint: "活動や矢印をクリックすると数字が見られます。",
+    closeLabel: "閉じる",
     clearFilter: "絞り込みを解除",
     backToCases: "一覧へ戻る",
     caseTimelineHint:

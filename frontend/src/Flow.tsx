@@ -172,17 +172,24 @@ interface Tip {
   lines: string[];
 }
 
+type Selection =
+  | { kind: "edge"; data: DfgEdge }
+  | { kind: "node"; data: DfgNode };
+
 export default function FlowPanel({
   objectType,
   modified,
+  onShowCases,
 }: {
   objectType: string;
   modified: string;
+  onShowCases: (from: string, to: string) => void;
 }) {
   const t = useMessages();
   const [detail, setDetail] = useState(0);
   const [dfg, setDfg] = useState<Dfg | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
+  const [sel, setSel] = useState<Selection | null>(null);
   const [error, setError] = useState<string | null>(null);
 
 
@@ -190,6 +197,7 @@ export default function FlowPanel({
     if (objectType === "") {
       return;
     }
+    setSel(null);
     fetchDfg(objectType)
       .then((d) => {
         setDfg(d);
@@ -254,12 +262,13 @@ export default function FlowPanel({
           </label>
         </span>
       </div>
-      <p className="muted guide">{t.flowHint}</p>
+      <p className="muted guide">{`${t.flowHint} ${t.selectionHint}`}</p>
       {dfg && filtered && filtered.edges.length < dfg.edges.length ? (
         <p className="muted">{t.edgesShown(filtered.edges.length, dfg.edges.length)}</p>
       ) : null}
       {error ? <div className="error">{error}</div> : null}
       {laid ? (
+        <div className="map-body">
         <div className="flow-scroll" onMouseLeave={() => setTip(null)}>
           <svg
             className="flow"
@@ -287,6 +296,7 @@ export default function FlowPanel({
                 className={edge.data ? "flow-hover" : undefined}
                 onMouseMove={edge.data ? (e) => edgeTip(e, edge.data!) : undefined}
                 onMouseLeave={() => setTip(null)}
+                onClick={edge.data ? () => setSel({ kind: "edge", data: edge.data! }) : undefined}
               >
                 <path
                   className="flow-edge"
@@ -336,6 +346,7 @@ export default function FlowPanel({
                   className="flow-hover"
                   onMouseMove={node.data ? (e) => nodeTip(e, node.data!) : undefined}
                   onMouseLeave={() => setTip(null)}
+                  onClick={node.data ? () => setSel({ kind: "node", data: node.data! }) : undefined}
                 >
                   <rect
                     className="flow-node"
@@ -371,6 +382,65 @@ export default function FlowPanel({
               ))}
             </div>
           ) : null}
+        </div>
+        {sel ? (
+          <aside className="sel-panel">
+            <div className="panel-head">
+              <div className="sel-title">
+                {sel.kind === "edge"
+                  ? sel.data.from === sel.data.to
+                    ? t.tipLoopTitle(sel.data.from)
+                    : `${sel.data.from} → ${sel.data.to}`
+                  : sel.data.activity}
+              </div>
+              <button className="link-button" onClick={() => setSel(null)}>
+                {t.closeLabel}
+              </button>
+            </div>
+            {sel.kind === "edge" ? (
+              <>
+                <p className="muted">
+                  {t.tipMoves(
+                    sel.data.frequency.toLocaleString(),
+                    `${(laid.totalTransitions > 0
+                      ? (sel.data.frequency / laid.totalTransitions) * 100
+                      : 0
+                    ).toFixed(1)}%`,
+                  )}
+                </p>
+                {sel.data.from !== sel.data.to ? (
+                  <p className="muted">
+                    {t.tipWait(t.duration(sel.data.medianSecs), t.duration(sel.data.meanSecs))}
+                  </p>
+                ) : null}
+                <p className="muted">{t.tipObjects(sel.data.objects.toLocaleString())}</p>
+                <button
+                  className="link-button"
+                  onClick={() => onShowCases(sel.data.from, sel.data.to)}
+                >
+                  {t.showCases} →
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="muted">
+                  {t.tipNodeEvents(
+                    sel.data.events.toLocaleString(),
+                    sel.data.objects.toLocaleString(),
+                  )}
+                </p>
+                {sel.data.starts > 0 || sel.data.ends > 0 ? (
+                  <p className="muted">
+                    {t.tipNodeStartEnd(
+                      sel.data.starts.toLocaleString(),
+                      sel.data.ends.toLocaleString(),
+                    )}
+                  </p>
+                ) : null}
+              </>
+            )}
+          </aside>
+        ) : null}
         </div>
       ) : (
         <div className="loading">{t.loading}</div>
