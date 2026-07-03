@@ -69,6 +69,16 @@ export interface Messages {
   langTitle: string;
   guidesTitle: string;
   navOverview: string;
+  navCases: string;
+  casesPanel: string;
+  casesHint: string;
+  caseStartCol: string;
+  caseStepsCol: string;
+  showCases: string;
+  filterVariant: (path: string) => string;
+  clearFilter: string;
+  backToCases: string;
+  caseTimelineHint: string;
   navMap: string;
   navPaths: string;
   navModel: string;
@@ -166,6 +176,17 @@ export const MESSAGES: Record<Lang, Messages> = {
     langTitle: "Language",
     guidesTitle: "Reading guides",
     navOverview: "Overview",
+    navCases: "Cases",
+    casesPanel: "Cases",
+    casesHint: "Every row is one real object. Click it to read its full timeline.",
+    caseStartCol: "Started",
+    caseStepsCol: "Steps",
+    showCases: "Cases",
+    filterVariant: (path) => `Path: ${path}`,
+    clearFilter: "Clear the filter",
+    backToCases: "Back to the list",
+    caseTimelineHint:
+      "What happened to this one object, in order. Chips are the other objects involved in each event.",
     navMap: "Map",
     navPaths: "Paths",
     navModel: "Model",
@@ -261,6 +282,17 @@ export const MESSAGES: Record<Lang, Messages> = {
     langTitle: "言語",
     guidesTitle: "読み方ガイド",
     navOverview: "概要",
+    navCases: "ケース",
+    casesPanel: "ケース",
+    casesHint: "1行が実在の1オブジェクト。クリックするとタイムラインを読めます。",
+    caseStartCol: "開始",
+    caseStepsCol: "ステップ",
+    showCases: "ケース",
+    filterVariant: (path) => `経路: ${path}`,
+    clearFilter: "絞り込みを解除",
+    backToCases: "一覧へ戻る",
+    caseTimelineHint:
+      "この1オブジェクトに起きたことを時系列で。チップは各イベントに関わった他のオブジェクト。",
     navMap: "マップ",
     navPaths: "経路",
     navModel: "モデル",

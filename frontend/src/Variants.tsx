@@ -10,9 +10,11 @@ import { useMessages } from "./i18n.tsx";
 export default function VariantsPanel({
   objectType,
   modified,
+  onShowCases,
 }: {
   objectType: string;
   modified: string;
+  onShowCases: (activities: string[]) => void;
 }) {
   const t = useMessages();
   const [report, setReport] = useState<VariantsResponse | null>(null);
@@ -55,6 +57,7 @@ export default function VariantsPanel({
                 <th>{t.shareCol}</th>
                 <th className="num">{t.leadCol}</th>
                 <th>{t.sequenceCol}</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -77,6 +80,14 @@ export default function VariantsPanel({
                       <span>{(share * 100).toFixed(1)}%</span>
                     </td>
                     <td className="num">{lead ? t.duration(lead.medianSecs) : "—"}</td>
+                    <td>
+                      <button
+                        className="link-button"
+                        onClick={() => onShowCases(variant.activities)}
+                      >
+                        {t.showCases} →
+                      </button>
+                    </td>
                     <td>
                       {variant.activities.map((activity, i) => (
                         <span key={`${activity}-${i}`}>

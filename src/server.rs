@@ -62,6 +62,8 @@ pub async fn run(path: PathBuf, port: u16) -> Result<(), Box<dyn Error>> {
         .route("/api/dfg", get(dfg))
         .route("/api/model", get(model))
         .route("/api/leadtimes", get(leadtimes))
+        .route("/api/cases", get(cases))
+        .route("/api/case", get(case_detail))
         .route("/api/status", get(status))
         .fallback(get(asset))
         .with_state(state);
@@ -316,6 +318,104 @@ async fn dfg(
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
     Ok(Json(ocel_mine::dfg(&loaded.log, &query.object_type)))
+}
+
+#[derive(Deserialize)]
+struct CasesQuery {
+    #[serde(rename = "type")]
+    object_type: String,
+    /// Activity sequence joined by the unit separator (U+001F).
+    variant: Option<String>,
+    #[serde(default)]
+    offset: usize,
+    #[serde(default = "default_limit")]
+    limit: usize,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CasesPage {
+    total: usize,
+    offset: usize,
+    items: Vec<ocel_mine::CaseSummary>,
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn cases(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<CasesQuery>,
+) -> Result<Json<CasesPage>, ApiError> {
+    ensure_fresh(&state).await?;
+    let loaded = state.loaded.read().await;
+    let all = ocel_mine::cases(&loaded.log, &query.object_type);
+    let filtered: Vec<ocel_mine::CaseSummary> = match &query.variant {
+        Some(joined) => {
+            let want: Vec<&str> = joined.split('\u{1f}').collect();
+            all.into_iter()
+                .filter(|c| {
+                    c.activities.len() == want.len()
+                        && c.activities.iter().zip(&want).all(|(a, b)| a == b)
+                })
+                .collect()
+        }
+        None => all,
+    };
+    let total = filtered.len();
+    let items = filtered
+        .into_iter()
+        .skip(query.offset)
+        .take(query.limit.min(MAX_PAGE))
+        .collect();
+    Ok(Json(CasesPage {
+        total,
+        offset: query.offset,
+        items,
+    }))
+}
+
+#[derive(Deserialize)]
+struct CaseQuery {
+    id: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CaseDetail {
+    object_id: String,
+    items: Vec<EventRow>,
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn case_detail(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<CaseQuery>,
+) -> Result<Json<CaseDetail>, ApiError> {
+    ensure_fresh(&state).await?;
+    let loaded = state.loaded.read().await;
+    let log = &loaded.log;
+    let items: Vec<EventRow> = loaded
+        .by_time
+        .iter()
+        .map(|&i| &log.events[i])
+        .filter(|event| event.relationships.iter().any(|r| r.object_id == query.id))
+        .map(|event| EventRow {
+            id: event.id.clone(),
+            event_type: event.event_type.clone(),
+            time: event.time,
+            objects: event
+                .relationships
+                .iter()
+                .map(|r| RelatedObject {
+                    id: r.object_id.clone(),
+                    qualifier: r.qualifier.clone(),
+                })
+                .collect(),
+        })
+        .collect();
+    Ok(Json(CaseDetail {
+        object_id: query.id,
+        items,
+    }))
 }
 
 #[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
