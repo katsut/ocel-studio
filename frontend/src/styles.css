@@ -211,6 +211,74 @@ main {
   }
 }
 
+.link-button {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.filter-chip {
+  background: var(--chip);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.row-link {
+  cursor: pointer;
+}
+
+.timeline {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.tl-item {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 8px 0 8px 18px;
+  border-left: 2px solid var(--border);
+  position: relative;
+}
+
+.tl-item::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.tl-time {
+  color: var(--muted);
+  font-size: 12.5px;
+  flex: 0 0 150px;
+}
+
+.tl-activity {
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+.tl-others {
+  min-width: 0;
+}
+
 .header-select {
   background: var(--panel);
   color: var(--text);

@@ -35,9 +35,10 @@ interface Layout {
 }
 
 function selfLoopPath(node: LaidNode): string {
+  // drawn above the node (the graph flows left to right)
   const x = node.x + node.width / 2;
   const y = node.y;
-  return `M ${x},${y - 9} C ${x + 44},${y - 22} ${x + 44},${y + 22} ${x},${y + 9}`;
+  return `M ${x - 9},${y} C ${x - 26},${y - 46} ${x + 26},${y - 46} ${x + 9},${y}`;
 }
 
 /// Keep the strongest incoming/outgoing edge of every activity (so nothing
@@ -67,7 +68,7 @@ function filterEdges(dfg: Dfg, detail: number): Dfg {
 
 function buildLayout(dfg: Dfg, t: Messages): Layout {
   const g = new graphlib.Graph();
-  g.setGraph({ rankdir: "TB", nodesep: 45, ranksep: 70, marginx: 16, marginy: 16 });
+  g.setGraph({ rankdir: "LR", nodesep: 34, ranksep: 90, marginx: 20, marginy: 40 });
   g.setDefaultEdgeLabel(() => ({}));
 
   for (const node of dfg.nodes) {
@@ -148,8 +149,8 @@ function buildLayout(dfg: Dfg, t: Messages): Layout {
       label: {
         count: t.timesLabel(loop.frequency.toLocaleString()),
         wait: "",
-        x: node.x + node.width + 28,
-        y: node.y + node.height / 2 - 16,
+        x: node.x + node.width / 2,
+        y: node.y - 38,
       },
     });
   }
@@ -273,8 +274,9 @@ export default function FlowPanel({
                 viewBox="0 0 8 8"
                 refX="7"
                 refY="4"
-                markerWidth="7"
-                markerHeight="7"
+                markerWidth="9"
+                markerHeight="9"
+                markerUnits="userSpaceOnUse"
                 orient="auto-start-reverse"
               >
                 <path d="M 0 0 L 8 4 L 0 8 z" className="flow-arrow" />

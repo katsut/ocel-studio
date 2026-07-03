@@ -62,12 +62,28 @@ export interface EventsPage {
   items: EventRow[];
 }
 
-async function get<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`${url}: ${res.status} ${await res.text()}`);
+// Everything is a pure function of the file content, so responses are cached
+// by URL and the whole cache is dropped when the file's mtime changes.
+const cache = new Map<string, Promise<unknown>>();
+
+export function clearApiCache(): void {
+  cache.clear();
+}
+
+function get<T>(url: string): Promise<T> {
+  const hit = cache.get(url);
+  if (hit) {
+    return hit as Promise<T>;
   }
-  return res.json() as Promise<T>;
+  const request = fetch(url).then(async (res) => {
+    if (!res.ok) {
+      throw new Error(`${url}: ${res.status} ${await res.text()}`);
+    }
+    return res.json() as Promise<T>;
+  });
+  request.catch(() => cache.delete(url));
+  cache.set(url, request);
+  return request;
 }
 
 export interface VariantRow {
@@ -142,6 +158,43 @@ export interface LeadTimeReport {
   rework: { activity: string; traces: number; extraOccurrences: number }[];
 }
 
+export interface CaseSummary {
+  objectId: string;
+  activities: string[];
+  events: number;
+  start: string;
+  end: string;
+  leadSecs: number;
+}
+
+export interface CasesPage {
+  total: number;
+  offset: number;
+  items: CaseSummary[];
+}
+
+export interface CaseDetail {
+  objectId: string;
+  items: EventRow[];
+}
+
+export const fetchCases = (
+  objectType: string,
+  variant: string[] | null,
+  offset: number,
+  limit: number,
+) => {
+  const filter = variant
+    ? `&variant=${encodeURIComponent(variant.join("\u001f"))}`
+    : "";
+  return get<CasesPage>(
+    `/api/cases?type=${encodeURIComponent(objectType)}${filter}&offset=${offset}&limit=${limit}`,
+  );
+};
+
+export const fetchCase = (id: string) =>
+  get<CaseDetail>(`/api/case?id=${encodeURIComponent(id)}`);
+
 export const fetchLeadTimes = (objectType: string) =>
   get<LeadTimeReport>(`/api/leadtimes?type=${encodeURIComponent(objectType)}`);
 
@@ -156,4 +209,10 @@ export const fetchVariants = (objectType: string, limit = 50) =>
 export const fetchEvents = (offset: number, limit: number) =>
   get<EventsPage>(`/api/events?offset=${offset}&limit=${limit}`);
 
-export const fetchStatus = () => get<{ modified: string }>("/api/status");
+export const fetchStatus = async (): Promise<{ modified: string }> => {
+  const res = await fetch("/api/status");
+  if (!res.ok) {
+    throw new Error(`/api/status: ${res.status}`);
+  }
+  return res.json() as Promise<{ modified: string }>;
+};

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   caseLikeType,
+  clearApiCache,
   fetchEvents,
   fetchStatus,
   fetchSummary,
@@ -21,6 +22,7 @@ import {
   themeIcon,
   type Theme,
 } from "./preferences.ts";
+import CasesPanel from "./Cases.tsx";
 import FlowPanel from "./Flow.tsx";
 import ModelPanel from "./Model.tsx";
 import VariantsPanel from "./Variants.tsx";
@@ -28,7 +30,7 @@ import VariantsPanel from "./Variants.tsx";
 const PAGE_SIZE = 50;
 const POLL_MS = 2000;
 
-export type Screen = "overview" | "map" | "paths" | "model" | "data";
+export type Screen = "overview" | "map" | "paths" | "cases" | "model" | "data";
 
 function formatTime(iso: string, lang: Lang): string {
   return new Date(iso).toLocaleString(lang === "ja" ? "ja-JP" : "en-US");
@@ -144,6 +146,7 @@ function Dashboard({
   const t = useMessages();
   const [screen, setScreen] = useState<Screen>("overview");
   const [chosenType, setChosenType] = useState<string>("");
+  const [variantFilter, setVariantFilter] = useState<string[] | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [page, setPage] = useState<EventsPage | null>(null);
   const [offset, setOffset] = useState(0);
@@ -169,6 +172,7 @@ function Dashboard({
       fetchStatus()
         .then((status) => {
           if (summary && status.modified !== summary.modified) {
+            clearApiCache();
             void refresh(offset);
           }
         })
@@ -188,6 +192,7 @@ function Dashboard({
     { key: "overview", label: t.navOverview },
     { key: "map", label: t.navMap },
     { key: "paths", label: t.navPaths },
+    { key: "cases", label: t.navCases },
     { key: "model", label: t.navModel },
     { key: "data", label: t.navData },
   ];
@@ -206,7 +211,10 @@ function Dashboard({
               className="header-select"
               title={t.objectTypeLabel}
               value={objectType}
-              onChange={(e) => setChosenType(e.target.value)}
+              onChange={(e) => {
+                setChosenType(e.target.value);
+                setVariantFilter(null);
+              }}
             >
               {summary.objectTypes.map((ty) => (
                 <option key={ty.name} value={ty.name}>
@@ -299,7 +307,23 @@ function Dashboard({
               <FlowPanel objectType={objectType} modified={summary.modified} />
             ) : null}
             {screen === "paths" && objectType !== "" ? (
-              <VariantsPanel objectType={objectType} modified={summary.modified} />
+              <VariantsPanel
+                objectType={objectType}
+                modified={summary.modified}
+                onShowCases={(activities) => {
+                  setVariantFilter(activities);
+                  setScreen("cases");
+                }}
+              />
+            ) : null}
+            {screen === "cases" && objectType !== "" ? (
+              <CasesPanel
+                objectType={objectType}
+                modified={summary.modified}
+                lang={lang}
+                variantFilter={variantFilter}
+                onClearFilter={() => setVariantFilter(null)}
+              />
             ) : null}
             {screen === "model" && objectType !== "" ? (
               <ModelPanel objectType={objectType} modified={summary.modified} />
