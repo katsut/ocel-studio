@@ -79,10 +79,21 @@ export interface Dfg {
   edges: DfgEdge[];
 }
 
+export type ProcessTree =
+  | { type: "activity"; label: string }
+  | { type: "tau" }
+  | { type: "sequence"; children: ProcessTree[] }
+  | { type: "exclusive"; children: ProcessTree[] }
+  | { type: "parallel"; children: ProcessTree[] }
+  | { type: "loop"; children: ProcessTree[] };
+
 export const fetchSummary = () => get<Summary>("/api/summary");
 
 export const fetchDfg = (objectType: string) =>
   get<Dfg>(`/api/dfg?type=${encodeURIComponent(objectType)}`);
+
+export const fetchModel = (objectType: string) =>
+  get<ProcessTree>(`/api/model?type=${encodeURIComponent(objectType)}`);
 
 export const fetchVariants = (objectType: string, limit = 50) =>
   get<VariantsResponse>(

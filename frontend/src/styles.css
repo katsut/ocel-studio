@@ -277,6 +277,11 @@ th.num {
   margin: 8px 0;
 }
 
+.intro {
+  margin: 0;
+  font-size: 14px;
+}
+
 .share {
   white-space: nowrap;
 }
@@ -361,4 +366,58 @@ th.num {
 .arrow {
   color: var(--muted);
   font-size: 12px;
+}
+
+.tree-scroll {
+  overflow-x: auto;
+  padding: 8px 2px;
+}
+
+.tree-activity {
+  display: inline-block;
+  background: var(--chip);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tree-tau {
+  display: inline-block;
+  color: var(--muted);
+  font-style: italic;
+  padding: 4px 6px;
+}
+
+.tree-group {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 8px 10px 8px 8px;
+  vertical-align: middle;
+}
+
+.tree-op {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 26px;
+}
+
+.tree-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tree-col {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }

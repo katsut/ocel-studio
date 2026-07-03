@@ -59,6 +59,7 @@ pub async fn run(path: PathBuf, port: u16) -> Result<(), Box<dyn Error>> {
         .route("/api/events", get(events))
         .route("/api/variants", get(variants))
         .route("/api/dfg", get(dfg))
+        .route("/api/model", get(model))
         .route("/api/status", get(status))
         .fallback(get(asset))
         .with_state(state);
@@ -309,6 +310,16 @@ async fn dfg(
     ensure_fresh(&state).await?;
     let loaded = state.loaded.read().await;
     Ok(Json(ocel_mine::dfg(&loaded.log, &query.object_type)))
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn model(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<DfgQuery>,
+) -> Result<Json<ocel_mine::ProcessTree>, ApiError> {
+    ensure_fresh(&state).await?;
+    let loaded = state.loaded.read().await;
+    Ok(Json(ocel_mine::inductive(&loaded.log, &query.object_type)))
 }
 
 #[derive(Serialize)]
