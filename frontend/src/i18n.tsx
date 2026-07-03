@@ -32,6 +32,14 @@ export interface Messages {
   flowPanel: string;
   detailLabel: string;
   edgesShown: (shown: number, total: number) => string;
+  duration: (secs: number) => string;
+  timesLabel: (n: string) => string;
+  tipMoves: (n: string, pct: string) => string;
+  tipWait: (median: string, mean: string) => string;
+  tipObjects: (n: string) => string;
+  tipLoopTitle: (activity: string) => string;
+  tipNodeEvents: (events: string, objects: string) => string;
+  tipNodeStartEnd: (starts: string, ends: string) => string;
   modelPanel: string;
   modelHint: string;
   variantsPanel: string;
@@ -72,7 +80,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     objectTypesHint:
       "The entities flowing through the process. Every analysis below is per object type — one object's events form one trace.",
     flowHint:
-      "The process map: how objects of this type move between activities. Thicker edges = more frequent; labels show frequency and the median gap.",
+      "The process map: how objects of this type move between activities. Thicker arrows = more frequent; each label shows how many times the move happened and ⏱ the median wait before the next step. Hover anything for details.",
     variantsHint:
       "The distinct paths taken. The top row is the most common way through the process.",
     eventsHint: "The raw events in time order.",
@@ -80,6 +88,25 @@ export const MESSAGES: Record<Lang, Messages> = {
     detailLabel: "Detail",
     edgesShown: (shown, total) =>
       `Showing the ${shown} strongest of ${total} paths — raise Detail to see more.`,
+    duration: (secs) => {
+      if (secs >= 86400) {
+        return `${(secs / 86400).toFixed(1)} days`;
+      }
+      if (secs >= 3600) {
+        return `${(secs / 3600).toFixed(1)} hrs`;
+      }
+      if (secs >= 60) {
+        return `${Math.round(secs / 60)} min`;
+      }
+      return `${Math.round(secs)} sec`;
+    },
+    timesLabel: (n) => `${n} times`,
+    tipMoves: (n, pct) => `Happened ${n} times (${pct} of all moves)`,
+    tipWait: (median, mean) => `Wait before the next step: median ${median}, mean ${mean}`,
+    tipObjects: (n) => `${n} objects took this path`,
+    tipLoopTitle: (activity) => `${activity} repeats itself`,
+    tipNodeEvents: (events, objects) => `Happened ${events} times across ${objects} objects`,
+    tipNodeStartEnd: (starts, ends) => `Starts a trace ${starts}×, ends one ${ends}×`,
     modelPanel: "Model",
     modelHint:
       "Discovered with the basic inductive miner (sound by construction): → sequence, ✕ choice, ∧ parallel, ↺ loop, τ silent.",
@@ -119,13 +146,32 @@ export const MESSAGES: Record<Lang, Messages> = {
     objectTypesHint:
       "プロセスを流れる実体。以下の分析はすべてこの型ごとに行われます — 1オブジェクトのイベント列が1トレースです。",
     flowHint:
-      "プロセスマップ: この型のオブジェクトが活動間をどう移動したか。太い矢印ほど頻度が高く、ラベルは回数と所要時間の中央値。",
+      "プロセスマップ: この型のオブジェクトが活動間をどう移動したか。太い矢印ほど頻度が高く、ラベルは「移動した回数」と「⏱ 次の活動までの待ち時間（中央値）」。カーソルを合わせると詳しい説明が出ます。",
     variantsHint: "通り方のパターン一覧。上の行ほど多くのオブジェクトが同じ経路を通っています。",
     eventsHint: "時刻順の生イベント。",
     flowPanel: "プロセスの流れ",
     detailLabel: "詳細度",
     edgesShown: (shown, total) =>
       `全 ${total} 本のうち主要な ${shown} 本を表示中 — 詳細度を上げると増えます。`,
+    duration: (secs) => {
+      if (secs >= 86400) {
+        return `${(secs / 86400).toFixed(1)}日`;
+      }
+      if (secs >= 3600) {
+        return `${(secs / 3600).toFixed(1)}時間`;
+      }
+      if (secs >= 60) {
+        return `${Math.round(secs / 60)}分`;
+      }
+      return `${Math.round(secs)}秒`;
+    },
+    timesLabel: (n) => `${n}回`,
+    tipMoves: (n, pct) => `${n}回発生（全移動の ${pct}）`,
+    tipWait: (median, mean) => `次の活動までの待ち: 中央値 ${median}・平均 ${mean}`,
+    tipObjects: (n) => `${n} 個のオブジェクトがこの経路を通過`,
+    tipLoopTitle: (activity) => `${activity} の繰り返し`,
+    tipNodeEvents: (events, objects) => `${events}回発生・${objects} 個のオブジェクトが通過`,
+    tipNodeStartEnd: (starts, ends) => `トレースの開始 ${starts}回・終了 ${ends}回`,
     modelPanel: "プロセスの構造",
     modelHint:
       "basic inductive miner による発見（構成上 sound）: → 順次、✕ 排他、∧ 並行、↺ ループ、τ 無音。",

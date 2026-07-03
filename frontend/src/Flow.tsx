@@ -1,30 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { graphlib, layout } from "@dagrejs/dagre";
-import { fetchDfg, type Dfg, type TypeCount } from "./api.ts";
-import { useMessages } from "./i18n.tsx";
+import { fetchDfg, type Dfg, type DfgEdge, type DfgNode, type TypeCount } from "./api.ts";
+import { useMessages, type Messages } from "./i18n.tsx";
 
 const NODE_H = 40;
 const CHAR_W = 7.5;
 const START = "__start__";
 const END = "__end__";
 
-function fmtGap(secs: number): string {
-  if (secs >= 86400) {
-    return `${(secs / 86400).toFixed(1)}d`;
-  }
-  if (secs >= 3600) {
-    return `${(secs / 3600).toFixed(1)}h`;
-  }
-  if (secs >= 60) {
-    return `${Math.round(secs / 60)}m`;
-  }
-  return `${Math.round(secs)}s`;
-}
-
 interface LaidNode {
   id: string;
   label: string;
-  events: number;
+  data?: DfgNode;
   x: number;
   y: number;
   width: number;
@@ -35,13 +22,14 @@ interface LaidEdge {
   key: string;
   d: string;
   width: number;
-  label?: { text: string; x: number; y: number };
-  marker: boolean;
+  data?: DfgEdge;
+  label?: { count: string; wait: string; x: number; y: number };
 }
 
 interface Layout {
   width: number;
   height: number;
+  totalTransitions: number;
   nodes: LaidNode[];
   edges: LaidEdge[];
 }
@@ -52,9 +40,34 @@ function selfLoopPath(node: LaidNode): string {
   return `M ${x},${y - 9} C ${x + 44},${y - 22} ${x + 44},${y + 22} ${x},${y + 9}`;
 }
 
-function buildLayout(dfg: Dfg): Layout {
+/// Keep the strongest incoming/outgoing edge of every activity (so nothing
+/// dangles), then add further edges by frequency up to the detail ratio.
+function filterEdges(dfg: Dfg, detail: number): Dfg {
+  const sorted = [...dfg.edges].sort((a, b) => b.frequency - a.frequency);
+  const keep = new Set<DfgEdge>();
+  for (const node of dfg.nodes) {
+    const out = sorted.find((e) => e.from === node.activity);
+    const inc = sorted.find((e) => e.to === node.activity);
+    if (out) {
+      keep.add(out);
+    }
+    if (inc) {
+      keep.add(inc);
+    }
+  }
+  const target = Math.max(keep.size, Math.round(sorted.length * detail));
+  for (const edge of sorted) {
+    if (keep.size >= target) {
+      break;
+    }
+    keep.add(edge);
+  }
+  return { ...dfg, edges: sorted.filter((e) => keep.has(e)) };
+}
+
+function buildLayout(dfg: Dfg, t: Messages): Layout {
   const g = new graphlib.Graph();
-  g.setGraph({ rankdir: "TB", nodesep: 45, ranksep: 65, marginx: 16, marginy: 16 });
+  g.setGraph({ rankdir: "TB", nodesep: 45, ranksep: 70, marginx: 16, marginy: 16 });
   g.setDefaultEdgeLabel(() => ({}));
 
   for (const node of dfg.nodes) {
@@ -76,7 +89,7 @@ function buildLayout(dfg: Dfg): Layout {
   const loops = dfg.edges.filter((e) => e.from === e.to);
   for (const edge of dfg.edges) {
     if (edge.from !== edge.to) {
-      g.setEdge(edge.from, edge.to, { width: 70, height: 14, labelpos: "c" });
+      g.setEdge(edge.from, edge.to, { width: 90, height: 30, labelpos: "c" });
     }
   }
   for (const node of dfg.nodes) {
@@ -92,11 +105,10 @@ function buildLayout(dfg: Dfg): Layout {
 
   const nodes: LaidNode[] = g.nodes().map((id) => {
     const n = g.node(id);
-    const data = dfg.nodes.find((d) => d.activity === id);
     return {
       id,
       label: id,
-      events: data?.events ?? 0,
+      data: dfg.nodes.find((d) => d.activity === id),
       x: n.x - n.width / 2,
       y: n.y - n.height / 2,
       width: n.width,
@@ -114,12 +126,13 @@ function buildLayout(dfg: Dfg): Layout {
     const label =
       data && e.x !== undefined && e.y !== undefined
         ? {
-            text: `${data.frequency.toLocaleString()}× ~${fmtGap(data.medianSecs)}`,
+            count: t.timesLabel(data.frequency.toLocaleString()),
+            wait: `⏱ ${t.duration(data.medianSecs)}`,
             x: e.x,
             y: e.y,
           }
         : undefined;
-    return { key: `${ref.v}→${ref.w}`, d, width, label, marker: true };
+    return { key: `${ref.v}→${ref.w}`, d, width, data, label };
   });
 
   for (const loop of loops) {
@@ -131,12 +144,13 @@ function buildLayout(dfg: Dfg): Layout {
       key: `${loop.from}⟲`,
       d: selfLoopPath(node),
       width: 1 + 3.5 * (loop.frequency / maxFreq),
+      data: loop,
       label: {
-        text: `${loop.frequency.toLocaleString()}×`,
-        x: node.x + node.width + 26,
-        y: node.y + node.height / 2 - 18,
+        count: t.timesLabel(loop.frequency.toLocaleString()),
+        wait: "",
+        x: node.x + node.width + 28,
+        y: node.y + node.height / 2 - 16,
       },
-      marker: true,
     });
   }
 
@@ -144,34 +158,17 @@ function buildLayout(dfg: Dfg): Layout {
   return {
     width: Math.max(graph.width ?? 0, 400) + 60,
     height: graph.height ?? 0,
+    totalTransitions: dfg.edges.reduce((sum, e) => sum + e.frequency, 0),
     nodes,
     edges,
   };
 }
 
-/// Keep the strongest incoming/outgoing edge of every activity (so nothing
-/// dangles), then add further edges by frequency up to the detail ratio.
-function filterEdges(dfg: Dfg, detail: number): Dfg {
-  const sorted = [...dfg.edges].sort((a, b) => b.frequency - a.frequency);
-  const keep = new Set<(typeof sorted)[number]>();
-  for (const node of dfg.nodes) {
-    const out = sorted.find((e) => e.from === node.activity);
-    const inc = sorted.find((e) => e.to === node.activity);
-    if (out) {
-      keep.add(out);
-    }
-    if (inc) {
-      keep.add(inc);
-    }
-  }
-  const target = Math.max(keep.size, Math.round(sorted.length * detail));
-  for (const edge of sorted) {
-    if (keep.size >= target) {
-      break;
-    }
-    keep.add(edge);
-  }
-  return { ...dfg, edges: sorted.filter((e) => keep.has(e)) };
+interface Tip {
+  x: number;
+  y: number;
+  title: string;
+  lines: string[];
 }
 
 export default function FlowPanel({
@@ -182,9 +179,11 @@ export default function FlowPanel({
   modified: string;
 }) {
   const t = useMessages();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string>("");
   const [detail, setDetail] = useState(0);
   const [dfg, setDfg] = useState<Dfg | null>(null);
+  const [tip, setTip] = useState<Tip | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const active =
@@ -208,7 +207,43 @@ export default function FlowPanel({
     return null;
   }
   const filtered = dfg && dfg.objectType === active ? filterEdges(dfg, detail) : null;
-  const laid = filtered ? buildLayout(filtered) : null;
+  const laid = filtered ? buildLayout(filtered, t) : null;
+
+  const place = (event: React.MouseEvent, title: string, lines: string[]) => {
+    const box = scrollRef.current;
+    if (!box) {
+      return;
+    }
+    const rect = box.getBoundingClientRect();
+    setTip({
+      x: event.clientX - rect.left + box.scrollLeft + 14,
+      y: event.clientY - rect.top + box.scrollTop + 14,
+      title,
+      lines,
+    });
+  };
+
+  const edgeTip = (event: React.MouseEvent, edge: DfgEdge) => {
+    const total = laid?.totalTransitions ?? 0;
+    const pct = total > 0 ? ((edge.frequency / total) * 100).toFixed(1) : "0";
+    const lines = [
+      t.tipMoves(edge.frequency.toLocaleString(), `${pct}%`),
+      t.tipObjects(edge.objects.toLocaleString()),
+    ];
+    if (edge.from !== edge.to) {
+      lines.splice(1, 0, t.tipWait(t.duration(edge.medianSecs), t.duration(edge.meanSecs)));
+    }
+    place(event, edge.from === edge.to ? t.tipLoopTitle(edge.from) : `${edge.from} → ${edge.to}`, lines);
+  };
+
+  const nodeTip = (event: React.MouseEvent, node: DfgNode) => {
+    const lines = [t.tipNodeEvents(node.events.toLocaleString(), node.objects.toLocaleString())];
+    if (node.starts > 0 || node.ends > 0) {
+      lines.push(t.tipNodeStartEnd(node.starts.toLocaleString(), node.ends.toLocaleString()));
+    }
+    place(event, node.activity, lines);
+  };
+
   return (
     <div className="panel">
       <div className="panel-head">
@@ -245,7 +280,7 @@ export default function FlowPanel({
       </p>
       {error ? <div className="error">{error}</div> : null}
       {laid ? (
-        <div className="flow-scroll">
+        <div className="flow-scroll" ref={scrollRef} onMouseLeave={() => setTip(null)}>
           <svg
             className="flow"
             width={laid.width}
@@ -266,16 +301,32 @@ export default function FlowPanel({
               </marker>
             </defs>
             {laid.edges.map((edge) => (
-              <g key={edge.key}>
+              <g
+                key={edge.key}
+                className={edge.data ? "flow-hover" : undefined}
+                onMouseMove={edge.data ? (e) => edgeTip(e, edge.data!) : undefined}
+                onMouseLeave={() => setTip(null)}
+              >
                 <path
                   className="flow-edge"
                   d={edge.d}
                   strokeWidth={edge.width}
-                  markerEnd={edge.marker ? "url(#arrow)" : undefined}
+                  markerEnd="url(#arrow)"
                 />
+                {edge.data ? (
+                  // invisible fat stroke so thin edges are easy to hover
+                  <path className="flow-edge-hit" d={edge.d} />
+                ) : null}
                 {edge.label ? (
                   <text className="flow-edge-label" x={edge.label.x} y={edge.label.y}>
-                    {edge.label.text}
+                    <tspan x={edge.label.x} dy={edge.label.wait === "" ? 0 : -3}>
+                      {edge.label.count}
+                    </tspan>
+                    {edge.label.wait === "" ? null : (
+                      <tspan x={edge.label.x} dy={12}>
+                        {edge.label.wait}
+                      </tspan>
+                    )}
                   </text>
                 ) : null}
               </g>
@@ -299,7 +350,12 @@ export default function FlowPanel({
                   ) : null}
                 </g>
               ) : (
-                <g key={node.id}>
+                <g
+                  key={node.id}
+                  className="flow-hover"
+                  onMouseMove={node.data ? (e) => nodeTip(e, node.data!) : undefined}
+                  onMouseLeave={() => setTip(null)}
+                >
                   <rect
                     className="flow-node"
                     x={node.x}
@@ -320,12 +376,20 @@ export default function FlowPanel({
                     x={node.x + node.width / 2}
                     y={node.y + 31}
                   >
-                    {node.events.toLocaleString()}
+                    {node.data?.events.toLocaleString() ?? ""}
                   </text>
                 </g>
               ),
             )}
           </svg>
+          {tip ? (
+            <div className="flow-tip" style={{ left: tip.x, top: tip.y }}>
+              <div className="flow-tip-title">{tip.title}</div>
+              {tip.lines.map((line) => (
+                <div key={line}>{line}</div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="loading">{t.loading}</div>
