@@ -5,21 +5,32 @@ import { useMessages } from "./i18n.tsx";
 const OPERATOR: Record<string, string> = {
   sequence: "→",
   exclusive: "✕",
-  parallel: "∧",
+  parallel: "＋",
   loop: "↺",
 };
 
 function TreeNode({ tree }: { tree: ProcessTree }) {
+  const t = useMessages();
   if (tree.type === "activity") {
     return <span className="tree-activity">{tree.label}</span>;
   }
   if (tree.type === "tau") {
-    return <span className="tree-tau">τ</span>;
+    return (
+      <span className="tree-tau" title={t.opTau}>
+        τ
+      </span>
+    );
   }
   const horizontal = tree.type === "sequence";
+  const opTitle: Record<string, string> = {
+    sequence: t.opSequence,
+    exclusive: t.opExclusive,
+    parallel: t.opParallel,
+    loop: t.opLoop,
+  };
   return (
     <span className={`tree-group tree-${tree.type}`}>
-      <span className="tree-op" title={tree.type}>
+      <span className="tree-op" title={opTitle[tree.type]}>
         {OPERATOR[tree.type]}
       </span>
       <span className={horizontal ? "tree-row" : "tree-col"}>

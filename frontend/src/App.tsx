@@ -178,6 +178,7 @@ function Dashboard({
   return (
     <>
       <header>
+        <img className="logo" src="/favicon.svg" alt="" />
         <span className="brand">ocel-studio</span>
         {summary ? (
           <span className="file" title={summary.path}>
