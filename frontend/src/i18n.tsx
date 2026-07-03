@@ -30,6 +30,8 @@ export interface Messages {
   variantsHint: string;
   eventsHint: string;
   flowPanel: string;
+  detailLabel: string;
+  edgesShown: (shown: number, total: number) => string;
   modelPanel: string;
   modelHint: string;
   variantsPanel: string;
@@ -75,6 +77,9 @@ export const MESSAGES: Record<Lang, Messages> = {
       "The distinct paths taken. The top row is the most common way through the process.",
     eventsHint: "The raw events in time order.",
     flowPanel: "Flow",
+    detailLabel: "Detail",
+    edgesShown: (shown, total) =>
+      `Showing the ${shown} strongest of ${total} paths — raise Detail to see more.`,
     modelPanel: "Model",
     modelHint:
       "Discovered with the basic inductive miner (sound by construction): → sequence, ✕ choice, ∧ parallel, ↺ loop, τ silent.",
@@ -118,6 +123,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     variantsHint: "通り方のパターン一覧。上の行ほど多くのオブジェクトが同じ経路を通っています。",
     eventsHint: "時刻順の生イベント。",
     flowPanel: "プロセスの流れ",
+    detailLabel: "詳細度",
+    edgesShown: (shown, total) =>
+      `全 ${total} 本のうち主要な ${shown} 本を表示中 — 詳細度を上げると増えます。`,
     modelPanel: "プロセスの構造",
     modelHint:
       "basic inductive miner による発見（構成上 sound）: → 順次、✕ 排他、∧ 並行、↺ ループ、τ 無音。",

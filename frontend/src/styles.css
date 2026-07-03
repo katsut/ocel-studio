@@ -262,6 +262,19 @@ th.num {
   color: var(--muted);
 }
 
+.panel-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.panel-controls input[type="range"] {
+  vertical-align: middle;
+  width: 120px;
+  accent-color: var(--accent);
+}
+
 .panel select {
   background: var(--panel);
   color: var(--text);

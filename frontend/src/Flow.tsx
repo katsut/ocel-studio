@@ -149,6 +149,31 @@ function buildLayout(dfg: Dfg): Layout {
   };
 }
 
+/// Keep the strongest incoming/outgoing edge of every activity (so nothing
+/// dangles), then add further edges by frequency up to the detail ratio.
+function filterEdges(dfg: Dfg, detail: number): Dfg {
+  const sorted = [...dfg.edges].sort((a, b) => b.frequency - a.frequency);
+  const keep = new Set<(typeof sorted)[number]>();
+  for (const node of dfg.nodes) {
+    const out = sorted.find((e) => e.from === node.activity);
+    const inc = sorted.find((e) => e.to === node.activity);
+    if (out) {
+      keep.add(out);
+    }
+    if (inc) {
+      keep.add(inc);
+    }
+  }
+  const target = Math.max(keep.size, Math.round(sorted.length * detail));
+  for (const edge of sorted) {
+    if (keep.size >= target) {
+      break;
+    }
+    keep.add(edge);
+  }
+  return { ...dfg, edges: sorted.filter((e) => keep.has(e)) };
+}
+
 export default function FlowPanel({
   types,
   modified,
@@ -158,6 +183,7 @@ export default function FlowPanel({
 }) {
   const t = useMessages();
   const [selected, setSelected] = useState<string>("");
+  const [detail, setDetail] = useState(0);
   const [dfg, setDfg] = useState<Dfg | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -181,23 +207,42 @@ export default function FlowPanel({
   if (active === "") {
     return null;
   }
-  const laid = dfg && dfg.objectType === active ? buildLayout(dfg) : null;
+  const filtered = dfg && dfg.objectType === active ? filterEdges(dfg, detail) : null;
+  const laid = filtered ? buildLayout(filtered) : null;
   return (
     <div className="panel">
       <div className="panel-head">
         <h2>{t.flowPanel}</h2>
-        <label>
-          {t.objectTypeLabel}{" "}
-          <select value={active} onChange={(e) => setSelected(e.target.value)}>
-            {types.map((ty) => (
-              <option key={ty.name} value={ty.name}>
-                {ty.name} ({ty.count.toLocaleString()})
-              </option>
-            ))}
-          </select>
-        </label>
+        <span className="panel-controls">
+          <label>
+            {t.detailLabel}{" "}
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(detail * 100)}
+              onChange={(e) => setDetail(Number(e.target.value) / 100)}
+            />
+          </label>
+          <label>
+            {t.objectTypeLabel}{" "}
+            <select value={active} onChange={(e) => setSelected(e.target.value)}>
+              {types.map((ty) => (
+                <option key={ty.name} value={ty.name}>
+                  {ty.name} ({ty.count.toLocaleString()})
+                </option>
+              ))}
+            </select>
+          </label>
+        </span>
       </div>
-      <p className="muted">{t.flowHint}</p>
+      <p className="muted">
+        {t.flowHint}
+        {dfg && filtered && filtered.edges.length < dfg.edges.length
+          ? ` ${t.edgesShown(filtered.edges.length, dfg.edges.length)}`
+          : ""}
+      </p>
       {error ? <div className="error">{error}</div> : null}
       {laid ? (
         <div className="flow-scroll">
