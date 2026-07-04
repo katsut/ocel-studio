@@ -52,6 +52,12 @@ export interface Messages {
   tipLoopTitle: (activity: string) => string;
   tipNodeEvents: (events: string, objects: string) => string;
   tipNodeStartEnd: (starts: string, ends: string) => string;
+  overlayLabel: string;
+  overlayBaseTitle: string;
+  overlayHint: string;
+  tipEdgeType: (objectType: string) => string;
+  tipOcTotal: (events: string) => string;
+  tipOcPerType: (objectType: string, events: string, objects: string) => string;
   modelPanel: string;
   opSequence: string;
   opExclusive: string;
@@ -181,6 +187,14 @@ export const MESSAGES: Record<Lang, Messages> = {
     tipLoopTitle: (activity) => `${activity} repeats itself`,
     tipNodeEvents: (events, objects) => `Happened ${events} times across ${objects} objects`,
     tipNodeStartEnd: (starts, ends) => `Starts a trace ${starts}×, ends one ${ends}×`,
+    overlayLabel: "Overlay",
+    overlayBaseTitle: "The base type follows the selector in the header.",
+    overlayHint:
+      "The object-centric map: each arrow color is one object type's flow, overlaid without flattening. An event touching several selected types counts once in the activity totals. Click an arrow for its numbers — the type is always named, never color alone.",
+    tipEdgeType: (objectType) => `Object type: ${objectType}`,
+    tipOcTotal: (events) => `${events} events (shared events counted once)`,
+    tipOcPerType: (objectType, events, objects) =>
+      `${objectType}: ${events} events, ${objects} objects`,
     modelPanel: "Model",
     opSequence: "in this order",
     opExclusive: "one of these",
@@ -316,6 +330,14 @@ export const MESSAGES: Record<Lang, Messages> = {
     tipLoopTitle: (activity) => `${activity} の繰り返し`,
     tipNodeEvents: (events, objects) => `${events}回発生・${objects} 個のオブジェクトが通過`,
     tipNodeStartEnd: (starts, ends) => `トレースの開始 ${starts}回・終了 ${ends}回`,
+    overlayLabel: "重ねる型",
+    overlayBaseTitle: "基準の型はヘッダーのセレクタに追随します。",
+    overlayHint:
+      "オブジェクト中心のマップ: 矢印の色がオブジェクト型ごとの流れで、平坦化せずに重ねています。複数の型に触れるイベントも活動の合計では1回だけ数えます。矢印をクリックすると数字が見られます（型は必ず文字でも示します）。",
+    tipEdgeType: (objectType) => `オブジェクト型: ${objectType}`,
+    tipOcTotal: (events) => `${events}回のイベント（共有イベントは1回だけ数える）`,
+    tipOcPerType: (objectType, events, objects) =>
+      `${objectType}: ${events}回・${objects} オブジェクト`,
     modelPanel: "プロセスの構造",
     opSequence: "この順で進む",
     opExclusive: "どれか1つ",

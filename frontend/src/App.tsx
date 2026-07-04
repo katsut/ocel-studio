@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   caseLikeType,
   clearApiCache,
   fetchEvents,
   fetchStatus,
   fetchSummary,
+  typeSlots,
   type CaseFilter,
   type EventsPage,
   type Range,
@@ -185,6 +186,7 @@ function Dashboard({
   }, [summary, offset, range, refresh, t]);
 
   const fileName = summary ? (summary.path.split("/").pop() ?? summary.path) : "";
+  const slots = useMemo(() => typeSlots(summary?.objectTypes ?? []), [summary]);
   const preferred = summary ? (caseLikeType(summary.typeStats) ?? "") : "";
   const objectType =
     summary && chosenType !== "" && summary.objectTypes.some((ty) => ty.name === chosenType)
@@ -327,9 +329,14 @@ function Dashboard({
             {screen === "map" && objectType !== "" ? (
               <FlowPanel
                 objectType={objectType}
+                objectTypes={summary.objectTypes}
+                slots={slots}
                 range={range}
                 modified={summary.modified}
-                onShowCases={(from, to) => {
+                onShowCases={(from, to, forType) => {
+                  if (forType !== objectType) {
+                    setChosenType(forType);
+                  }
                   setCaseFilter({ kind: "edge", from, to });
                   setScreen("cases");
                 }}

@@ -857,6 +857,55 @@ th.num {
   stroke-width: 1.5;
 }
 
+.type-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 2px 0 4px;
+  font-size: 12.5px;
+}
+
+.type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.type-chip.active {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--chip-cat) 55%, var(--border));
+  background: color-mix(in srgb, var(--chip-cat) 12%, var(--panel));
+}
+
+.type-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chip-cat);
+  flex: 0 0 auto;
+}
+
+.type-chip:not(.active) .type-dot {
+  opacity: 0.45;
+}
+
+.type-dot.inline {
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.oc-edge {
+  opacity: 0.85;
+}
+
 .tree-scroll {
   overflow-x: auto;
   padding: 8px 2px;

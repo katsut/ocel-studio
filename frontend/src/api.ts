@@ -144,6 +144,40 @@ export interface Dfg {
   edges: DfgEdge[];
 }
 
+export interface OcTypeCount {
+  objectType: string;
+  events: number;
+  objects: number;
+  starts: number;
+  ends: number;
+}
+
+export interface OcActivity {
+  activity: string;
+  events: number;
+  perType: OcTypeCount[];
+}
+
+export interface OcDfgEdge extends DfgEdge {
+  objectType: string;
+}
+
+export interface OcDfg {
+  objectTypes: string[];
+  activities: OcActivity[];
+  edges: OcDfgEdge[];
+}
+
+/// Stable categorical slot per object type: descending object count at load,
+/// fixed for the session — color follows the entity, never its rank
+/// (docs/design/design-system.md).
+export function typeSlots(objectTypes: TypeCount[]): Map<string, number> {
+  const ranked = [...objectTypes].sort(
+    (a, b) => b.count - a.count || a.name.localeCompare(b.name),
+  );
+  return new Map(ranked.slice(0, 8).map((ty, i) => [ty.name, i + 1]));
+}
+
 export type ProcessTree =
   | { type: "activity"; label: string }
   | { type: "tau" }
@@ -213,6 +247,9 @@ export const fetchSummary = (range: Range | null) =>
 
 export const fetchDfg = (objectType: string, range: Range | null) =>
   get<Dfg>(`/api/dfg?type=${encodeURIComponent(objectType)}${rangeParams(range)}`);
+
+export const fetchOcDfg = (types: string[], range: Range | null) =>
+  get<OcDfg>(`/api/ocdfg?types=${encodeURIComponent(types.join(","))}${rangeParams(range)}`);
 
 export interface VariantLead {
   activities: string[];

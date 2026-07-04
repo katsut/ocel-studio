@@ -1,12 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { graphlib, layout } from "@dagrejs/dagre";
-import { fetchDfg, type Dfg, type DfgEdge, type DfgNode, type Range } from "./api.ts";
+import {
+  fetchDfg,
+  fetchOcDfg,
+  type Dfg,
+  type DfgEdge,
+  type DfgNode,
+  type OcActivity,
+  type OcDfg,
+  type OcDfgEdge,
+  type Range,
+  type TypeCount,
+} from "./api.ts";
 import { useMessages, type Messages } from "./i18n.tsx";
 
 const NODE_H = 40;
 const CHAR_W = 7.5;
 const START = "__start__";
 const END = "__end__";
+const PAIR_SEP = "";
 
 interface LaidNode {
   id: string;
@@ -165,6 +177,88 @@ function buildLayout(dfg: Dfg, t: Messages): Layout {
   };
 }
 
+/// Per-type backbone filter for the overlay: each type keeps its own
+/// strongest edges, so a small type is not drowned out by a big one.
+function filterOcEdges(oc: OcDfg, detail: number): OcDfgEdge[] {
+  const out: OcDfgEdge[] = [];
+  for (const objectType of oc.objectTypes) {
+    const nodes: DfgNode[] = [];
+    for (const activity of oc.activities) {
+      const per = activity.perType.find((p) => p.objectType === objectType);
+      if (per) {
+        nodes.push({
+          activity: activity.activity,
+          events: per.events,
+          objects: per.objects,
+          starts: per.starts,
+          ends: per.ends,
+        });
+      }
+    }
+    const edges = oc.edges.filter((e) => e.objectType === objectType);
+    const pseudo: Dfg = { objectType, objects: 0, withEvents: 0, nodes, edges };
+    out.push(...(filterEdges(pseudo, detail).edges as OcDfgEdge[]));
+  }
+  return out;
+}
+
+interface OverlayLaid {
+  width: number;
+  height: number;
+  nodes: { data: OcActivity; x: number; y: number; width: number; height: number }[];
+  /// "from<US>to" -> shared dagre path for that pair.
+  paths: Map<string, string>;
+}
+
+function buildOverlayLayout(activities: OcActivity[], edges: OcDfgEdge[]): OverlayLaid {
+  const g = new graphlib.Graph();
+  g.setGraph({ rankdir: "LR", nodesep: 34, ranksep: 90, marginx: 20, marginy: 46 });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  for (const activity of activities) {
+    g.setNode(activity.activity, {
+      width: Math.max(90, activity.activity.length * CHAR_W + 28),
+      height: NODE_H,
+    });
+  }
+  const pairs = new Set(
+    edges.filter((e) => e.from !== e.to).map((e) => `${e.from}${PAIR_SEP}${e.to}`),
+  );
+  for (const key of pairs) {
+    const [from, to] = key.split(PAIR_SEP);
+    g.setEdge(from, to, {});
+  }
+
+  layout(g);
+
+  const nodes = activities.map((data) => {
+    const n = g.node(data.activity);
+    return {
+      data,
+      x: n.x - n.width / 2,
+      y: n.y - n.height / 2,
+      width: n.width,
+      height: n.height,
+    };
+  });
+  const paths = new Map<string, string>();
+  for (const ref of g.edges()) {
+    const e = g.edge(ref);
+    const d = e.points
+      .map((p: { x: number; y: number }, i: number) => `${i === 0 ? "M" : "L"} ${p.x},${p.y}`)
+      .join(" ");
+    paths.set(`${ref.v}${PAIR_SEP}${ref.w}`, d);
+  }
+
+  const graph = g.graph();
+  return {
+    width: Math.max(graph.width ?? 0, 400) + 60,
+    height: graph.height ?? 0,
+    nodes,
+    paths,
+  };
+}
+
 interface Tip {
   x: number;
   y: number;
@@ -174,42 +268,73 @@ interface Tip {
 
 type Selection =
   | { kind: "edge"; data: DfgEdge }
-  | { kind: "node"; data: DfgNode };
+  | { kind: "node"; data: DfgNode }
+  | { kind: "ocEdge"; data: OcDfgEdge }
+  | { kind: "ocNode"; data: OcActivity };
 
 export default function FlowPanel({
   objectType,
+  objectTypes,
+  slots,
   range,
   modified,
   onShowCases,
 }: {
   objectType: string;
+  objectTypes: TypeCount[];
+  slots: Map<string, number>;
   range: Range | null;
   modified: string;
-  onShowCases: (from: string, to: string) => void;
+  onShowCases: (from: string, to: string, objectType: string) => void;
 }) {
   const t = useMessages();
   const [detail, setDetail] = useState(0);
+  const [extra, setExtra] = useState<string[]>([]);
   const [dfg, setDfg] = useState<Dfg | null>(null);
+  const [oc, setOc] = useState<{ forKey: string; data: OcDfg } | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
   const [sel, setSel] = useState<Selection | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // the base type follows the global selector; overlay picks reset with it
+  useEffect(() => {
+    setExtra([]);
+  }, [objectType]);
+
+  const types = useMemo(() => [objectType, ...extra], [objectType, extra]);
+  const typesKey = types.join(",");
 
   useEffect(() => {
     if (objectType === "") {
       return;
     }
     setSel(null);
-    fetchDfg(objectType, range)
-      .then((d) => {
-        setDfg(d);
-        setError(null);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [objectType, range, modified]);
+    if (types.length === 1) {
+      fetchDfg(objectType, range)
+        .then((d) => {
+          setDfg(d);
+          setError(null);
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+    } else {
+      fetchOcDfg(types, range)
+        .then((data) => {
+          setOc({ forKey: typesKey, data });
+          setError(null);
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+    }
+  }, [objectType, types, typesKey, range, modified]);
 
-    const filtered = dfg && dfg.objectType === objectType ? filterEdges(dfg, detail) : null;
+  const overlayMode = types.length > 1;
+  const filtered = !overlayMode && dfg && dfg.objectType === objectType ? filterEdges(dfg, detail) : null;
   const laid = filtered ? buildLayout(filtered, t) : null;
+
+  const ocData = overlayMode && oc && oc.forKey === typesKey ? oc.data : null;
+  const ocEdges = ocData ? filterOcEdges(ocData, detail) : null;
+  const ocLaid = ocData && ocEdges ? buildOverlayLayout(ocData.activities, ocEdges) : null;
+
+  const slotOf = (ty: string) => slots.get(ty) ?? 8;
 
   const place = (event: React.MouseEvent, title: string, lines: string[]) => {
     const width = 330;
@@ -246,6 +371,57 @@ export default function FlowPanel({
     place(event, node.activity, lines);
   };
 
+  const ocEdgeTip = (event: React.MouseEvent, edge: OcDfgEdge) => {
+    const lines = [
+      t.tipEdgeType(edge.objectType),
+      t.timesLabel(edge.frequency.toLocaleString()),
+      t.tipObjects(edge.objects.toLocaleString()),
+    ];
+    if (edge.from !== edge.to) {
+      lines.splice(2, 0, t.tipWait(t.duration(edge.medianSecs), t.duration(edge.meanSecs)));
+    }
+    place(event, edge.from === edge.to ? t.tipLoopTitle(edge.from) : `${edge.from} → ${edge.to}`, lines);
+  };
+
+  const ocNodeTip = (event: React.MouseEvent, activity: OcActivity) => {
+    const lines = [
+      t.tipOcTotal(activity.events.toLocaleString()),
+      ...activity.perType.map((p) =>
+        t.tipOcPerType(p.objectType, p.events.toLocaleString(), p.objects.toLocaleString()),
+      ),
+    ];
+    place(event, activity.activity, lines);
+  };
+
+  const toggleType = (name: string) => {
+    if (name === objectType) {
+      return;
+    }
+    setSel(null);
+    setExtra((cur) => (cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name]));
+  };
+
+  // only types with a stable palette slot can join the overlay
+  const chipTypes = objectTypes.filter((ty) => slots.has(ty.name));
+
+  const ocMaxFreq = ocEdges ? Math.max(1, ...ocEdges.map((e) => e.frequency)) : 1;
+  const ocGroups = useMemo(() => {
+    const groups = new Map<string, OcDfgEdge[]>();
+    for (const edge of ocEdges ?? []) {
+      const key = `${edge.from}${PAIR_SEP}${edge.to}`;
+      const group = groups.get(key);
+      if (group) {
+        group.push(edge);
+      } else {
+        groups.set(key, [edge]);
+      }
+    }
+    return groups;
+  }, [ocEdges]);
+  const usedSlots = [...new Set((ocEdges ?? []).map((e) => slotOf(e.objectType)))];
+
+  const totalOcEdges = ocData?.edges.length ?? 0;
+
   return (
     <div className="panel">
       <div className="panel-head">
@@ -264,12 +440,35 @@ export default function FlowPanel({
           </label>
         </span>
       </div>
-      <p className="muted guide">{`${t.flowHint} ${t.selectionHint}`}</p>
-      {dfg && filtered && filtered.edges.length < dfg.edges.length ? (
+      <div className="type-chips">
+        <span className="muted">{t.overlayLabel}</span>
+        {chipTypes.map((ty) => {
+          const active = types.includes(ty.name);
+          return (
+            <button
+              key={ty.name}
+              className={active ? "type-chip active" : "type-chip"}
+              title={ty.name === objectType ? t.overlayBaseTitle : undefined}
+              onClick={() => toggleType(ty.name)}
+              style={{ "--chip-cat": `var(--cat-${slotOf(ty.name)})` } as React.CSSProperties}
+            >
+              <span className="type-dot" />
+              {ty.name}
+            </button>
+          );
+        })}
+      </div>
+      <p className="muted guide">
+        {overlayMode ? t.overlayHint : `${t.flowHint} ${t.selectionHint}`}
+      </p>
+      {!overlayMode && dfg && filtered && filtered.edges.length < dfg.edges.length ? (
         <p className="muted">{t.edgesShown(filtered.edges.length, dfg.edges.length)}</p>
       ) : null}
+      {overlayMode && ocEdges && ocEdges.length < totalOcEdges ? (
+        <p className="muted">{t.edgesShown(ocEdges.length, totalOcEdges)}</p>
+      ) : null}
       {error ? <div className="error">{error}</div> : null}
-      {laid ? (
+      {!overlayMode && laid ? (
         <div className="map-body">
         <div className="flow-scroll" onMouseLeave={() => setTip(null)}>
           <svg
@@ -385,7 +584,7 @@ export default function FlowPanel({
             </div>
           ) : null}
         </div>
-        {sel ? (
+        {sel && (sel.kind === "edge" || sel.kind === "node") ? (
           <aside className="sel-panel">
             <div className="panel-head">
               <div className="sel-title">
@@ -418,7 +617,7 @@ export default function FlowPanel({
                 <p className="muted">{t.tipObjects(sel.data.objects.toLocaleString())}</p>
                 <button
                   className="link-button"
-                  onClick={() => onShowCases(sel.data.from, sel.data.to)}
+                  onClick={() => onShowCases(sel.data.from, sel.data.to, objectType)}
                 >
                   {t.showCases} →
                 </button>
@@ -444,9 +643,172 @@ export default function FlowPanel({
           </aside>
         ) : null}
         </div>
-      ) : (
+      ) : null}
+      {overlayMode && ocLaid && ocEdges ? (
+        <div className="map-body">
+        <div className="flow-scroll" onMouseLeave={() => setTip(null)}>
+          <svg
+            className="flow"
+            width={ocLaid.width}
+            height={ocLaid.height}
+            viewBox={`0 0 ${ocLaid.width} ${ocLaid.height}`}
+          >
+            <defs>
+              {usedSlots.map((slot) => (
+                <marker
+                  key={slot}
+                  id={`arrow-cat-${slot}`}
+                  viewBox="0 0 8 8"
+                  refX="7"
+                  refY="4"
+                  markerWidth="9"
+                  markerHeight="9"
+                  markerUnits="userSpaceOnUse"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 8 4 L 0 8 z" style={{ fill: `var(--cat-${slot})` }} />
+                </marker>
+              ))}
+            </defs>
+            {[...ocGroups.entries()].flatMap(([key, group]) => {
+              const [from, to] = key.split(PAIR_SEP);
+              const loop = from === to;
+              const node = loop ? ocLaid.nodes.find((n) => n.data.activity === from) : null;
+              const base = loop
+                ? node
+                  ? selfLoopPath({
+                      id: from,
+                      label: from,
+                      x: node.x,
+                      y: node.y,
+                      width: node.width,
+                      height: node.height,
+                    })
+                  : null
+                : (ocLaid.paths.get(key) ?? null);
+              if (base === null) {
+                return [];
+              }
+              return group.map((edge, i) => {
+                const offset = (i - (group.length - 1) / 2) * 4;
+                const slot = slotOf(edge.objectType);
+                return (
+                  <g
+                    key={`${key}:${edge.objectType}`}
+                    className="flow-hover"
+                    transform={`translate(0, ${offset})`}
+                    onMouseMove={(e) => ocEdgeTip(e, edge)}
+                    onMouseLeave={() => setTip(null)}
+                    onClick={() => setSel({ kind: "ocEdge", data: edge })}
+                  >
+                    <path
+                      className="flow-edge oc-edge"
+                      d={base}
+                      style={{ stroke: `var(--cat-${slot})` }}
+                      strokeWidth={1 + 3.5 * (edge.frequency / ocMaxFreq)}
+                      markerEnd={`url(#arrow-cat-${slot})`}
+                    />
+                    <path className="flow-edge-hit" d={base} />
+                  </g>
+                );
+              });
+            })}
+            {ocLaid.nodes.map((node) => (
+              <g
+                key={node.data.activity}
+                className="flow-hover"
+                onMouseMove={(e) => ocNodeTip(e, node.data)}
+                onMouseLeave={() => setTip(null)}
+                onClick={() => setSel({ kind: "ocNode", data: node.data })}
+              >
+                <rect
+                  className="flow-node"
+                  x={node.x}
+                  y={node.y}
+                  width={node.width}
+                  height={node.height}
+                  rx={9}
+                />
+                <text className="flow-node-label" x={node.x + node.width / 2} y={node.y + 17}>
+                  {node.data.activity}
+                </text>
+                <text className="flow-node-count" x={node.x + node.width / 2} y={node.y + 31}>
+                  {node.data.events.toLocaleString()}
+                </text>
+              </g>
+            ))}
+          </svg>
+          {tip ? (
+            <div className="flow-tip" style={{ left: tip.x, top: tip.y }}>
+              <div className="flow-tip-title">{tip.title}</div>
+              {tip.lines.map((line) => (
+                <div key={line}>{line}</div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        {sel && (sel.kind === "ocEdge" || sel.kind === "ocNode") ? (
+          <aside className="sel-panel">
+            <div className="panel-head">
+              <div className="sel-title">
+                {sel.kind === "ocEdge"
+                  ? sel.data.from === sel.data.to
+                    ? t.tipLoopTitle(sel.data.from)
+                    : `${sel.data.from} → ${sel.data.to}`
+                  : sel.data.activity}
+              </div>
+              <button className="link-button" onClick={() => setSel(null)}>
+                {t.closeLabel}
+              </button>
+            </div>
+            {sel.kind === "ocEdge" ? (
+              <>
+                <p className="muted">
+                  <span
+                    className="type-dot inline"
+                    style={{ "--chip-cat": `var(--cat-${slotOf(sel.data.objectType)})` } as React.CSSProperties}
+                  />
+                  {t.tipEdgeType(sel.data.objectType)}
+                </p>
+                <p className="muted">{t.timesLabel(sel.data.frequency.toLocaleString())}</p>
+                {sel.data.from !== sel.data.to ? (
+                  <p className="muted">
+                    {t.tipWait(t.duration(sel.data.medianSecs), t.duration(sel.data.meanSecs))}
+                  </p>
+                ) : null}
+                <p className="muted">{t.tipObjects(sel.data.objects.toLocaleString())}</p>
+                <button
+                  className="link-button"
+                  onClick={() => onShowCases(sel.data.from, sel.data.to, sel.data.objectType)}
+                >
+                  {t.showCases} →
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="muted">{t.tipOcTotal(sel.data.events.toLocaleString())}</p>
+                {sel.data.perType.map((p) => (
+                  <p className="muted" key={p.objectType}>
+                    <span
+                      className="type-dot inline"
+                      style={{ "--chip-cat": `var(--cat-${slotOf(p.objectType)})` } as React.CSSProperties}
+                    />
+                    {t.tipOcPerType(
+                      p.objectType,
+                      p.events.toLocaleString(),
+                      p.objects.toLocaleString(),
+                    )}
+                  </p>
+                ))}
+              </>
+            )}
+          </aside>
+        ) : null}
+        </div>
+      ) : null}
+      {(!overlayMode && !laid) || (overlayMode && !ocLaid) ? (
         <div className="loading">{t.loading}</div>
-      )}
+      ) : null}
     </div>
   );
 }
