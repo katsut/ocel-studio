@@ -358,10 +358,26 @@ export const fetchVariants = (objectType: string, range: Range | null, limit = 5
 export const fetchEvents = (offset: number, limit: number, range: Range | null) =>
   get<EventsPage>(`/api/events?offset=${offset}&limit=${limit}${rangeParams(range)}`);
 
-export const fetchStatus = async (): Promise<{ modified: string }> => {
+export interface Status {
+  loaded: boolean;
+  modified: string | null;
+  dataDir: string;
+}
+
+export const fetchStatus = async (): Promise<Status> => {
   const res = await fetch("/api/status");
   if (!res.ok) {
     throw new Error(`/api/status: ${res.status}`);
   }
-  return res.json() as Promise<{ modified: string }>;
+  return res.json() as Promise<Status>;
+};
+
+/// Fetch the official sample into the data directory and load it. Slow
+/// (~35 MB download on first use) — callers show progress.
+export const fetchSample = async (): Promise<Status> => {
+  const res = await fetch("/api/sample", { method: "POST" });
+  if (!res.ok) {
+    throw new Error(`/api/sample: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<Status>;
 };

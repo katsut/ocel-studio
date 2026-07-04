@@ -118,6 +118,12 @@ export interface Messages {
   navPaths: string;
   navModel: string;
   navData: string;
+  emptyTitle: string;
+  emptyBody: string;
+  emptySampleButton: string;
+  emptyDownloading: string;
+  emptySampleNote: (dir: string) => string;
+  emptyCliHint: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -274,6 +280,14 @@ export const MESSAGES: Record<Lang, Messages> = {
     navPaths: "Paths",
     navModel: "Model",
     navData: "Data",
+    emptyTitle: "No event log yet",
+    emptyBody:
+      "Process mining starts from an event log. Try the studio with the official OCEL 2.0 sample — an order-management process with 21,008 events — or open your own file: ocel-studio path/to/log.sqlite",
+    emptySampleButton: "Fetch the official sample",
+    emptyDownloading: "Downloading… (~35 MB, this can take a minute)",
+    emptySampleNote: (dir) =>
+      `Downloads order-management.sqlite (~35 MB) from Zenodo into ${dir} — only when you click, never on its own.`,
+    emptyCliHint: "Next time the studio reopens the most recent log in that folder automatically.",
   },
   ja: {
     events: "イベント",
@@ -428,6 +442,14 @@ export const MESSAGES: Record<Lang, Messages> = {
     navPaths: "経路",
     navModel: "モデル",
     navData: "データ",
+    emptyTitle: "イベントログがまだありません",
+    emptyBody:
+      "プロセスマイニングはイベントログから始まります。公式の OCEL 2.0 サンプル（受注プロセス・21,008 イベント）で試すか、自分のファイルを開いてください: ocel-studio path/to/log.sqlite",
+    emptySampleButton: "公式サンプルを取得",
+    emptyDownloading: "ダウンロード中…（約35MB・1分ほどかかることがあります）",
+    emptySampleNote: (dir) =>
+      `Zenodo から order-management.sqlite（約35MB）を ${dir} に保存します。押した時だけ通信します。`,
+    emptyCliHint: "次回からは、このフォルダの最新のログを自動で開きます。",
   },
 };
 

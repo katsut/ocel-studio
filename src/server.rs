@@ -14,7 +14,7 @@ use std::time::SystemTime;
 use axum::extract::{Query, State};
 use axum::http::{header, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use std::borrow::Cow;
 
@@ -29,7 +29,13 @@ const MAX_PAGE: usize = 500;
 #[folder = "frontend/dist/"]
 struct Assets;
 
+/// The official Zenodo Order Management sample (~35 MB sqlite, 21K events).
+const SAMPLE_URL: &str =
+    "https://zenodo.org/api/records/18373906/files/order-management.sqlite/content";
+const SAMPLE_FILE: &str = "order-management.sqlite";
+
 struct Loaded {
+    path: PathBuf,
     modified: SystemTime,
     log: ocel::Ocel,
     by_time: Vec<usize>,
@@ -38,22 +44,32 @@ struct Loaded {
 }
 
 struct AppState {
-    path: PathBuf,
-    loaded: RwLock<Loaded>,
+    data_dir: PathBuf,
+    loaded: RwLock<Option<Loaded>>,
 }
 
 type ApiError = (StatusCode, String);
 
-pub async fn run(path: PathBuf, port: u16) -> Result<(), Box<dyn Error>> {
-    let loaded = load(&path)?;
-    eprintln!(
-        "opened {}: {} events / {} objects",
-        path.display(),
-        loaded.log.events.len(),
-        loaded.log.objects.len()
-    );
+pub async fn run(
+    initial: Option<PathBuf>,
+    data_dir: PathBuf,
+    port: u16,
+) -> Result<(), Box<dyn Error>> {
+    let loaded = if let Some(path) = initial {
+        let loaded = load(&path)?;
+        eprintln!(
+            "opened {}: {} events / {} objects",
+            path.display(),
+            loaded.log.events.len(),
+            loaded.log.objects.len()
+        );
+        Some(loaded)
+    } else {
+        eprintln!("no log loaded — the studio offers the official sample on first visit");
+        None
+    };
     let state = Arc::new(AppState {
-        path,
+        data_dir,
         loaded: RwLock::new(loaded),
     });
 
@@ -68,6 +84,7 @@ pub async fn run(path: PathBuf, port: u16) -> Result<(), Box<dyn Error>> {
         .route("/api/cases", get(cases))
         .route("/api/case", get(case_detail))
         .route("/api/status", get(status))
+        .route("/api/sample", post(sample))
         .fallback(get(asset))
         .with_state(state);
 
@@ -89,6 +106,7 @@ fn load(path: &Path) -> Result<Loaded, Box<dyn Error>> {
         .collect();
     let type_stats = ocel_mine::type_stats(&log);
     Ok(Loaded {
+        path: path.to_path_buf(),
         modified,
         log,
         by_time,
@@ -101,20 +119,34 @@ fn internal<E: ToString + ?Sized>(err: &E) -> ApiError {
     (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
 }
 
+fn no_log() -> ApiError {
+    (StatusCode::NOT_FOUND, "no log loaded".to_owned())
+}
+
 /// Re-read the log when the file changed on disk since the loaded snapshot.
 async fn ensure_fresh(state: &AppState) -> Result<(), ApiError> {
-    let modified = std::fs::metadata(&state.path)
+    let path = match state.loaded.read().await.as_ref() {
+        Some(loaded) => loaded.path.clone(),
+        None => return Ok(()),
+    };
+    let modified = std::fs::metadata(&path)
         .and_then(|m| m.modified())
         .map_err(|e| internal(&e))?;
-    if state.loaded.read().await.modified != modified {
-        let loaded = load(&state.path).map_err(|e| internal(&*e))?;
+    let changed = state
+        .loaded
+        .read()
+        .await
+        .as_ref()
+        .is_some_and(|l| l.modified != modified);
+    if changed {
+        let loaded = load(&path).map_err(|e| internal(&*e))?;
         eprintln!(
             "reloaded {}: {} events / {} objects",
-            state.path.display(),
+            path.display(),
             loaded.log.events.len(),
             loaded.log.objects.len()
         );
-        *state.loaded.write().await = loaded;
+        *state.loaded.write().await = Some(loaded);
     }
     Ok(())
 }
@@ -223,7 +255,8 @@ async fn summary(
     Query(range): Query<RangeQuery>,
 ) -> Result<Json<Summary>, ApiError> {
     ensure_fresh(&state).await?;
-    let loaded = state.loaded.read().await;
+    let guard = state.loaded.read().await;
+    let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = window(&loaded.log, &range)?;
     let windowed = matches!(log, Cow::Owned(_));
     let by_time = if windowed {
@@ -236,7 +269,7 @@ async fn summary(
         end: log.events[by_time[by_time.len() - 1]].time,
     });
     Ok(Json(Summary {
-        path: state.path.display().to_string(),
+        path: loaded.path.display().to_string(),
         modified: loaded.modified.into(),
         events: log.events.len(),
         objects: log.objects.len(),
@@ -300,7 +333,8 @@ async fn events(
     Query(page): Query<PageQuery>,
 ) -> Result<Json<EventsPage>, ApiError> {
     ensure_fresh(&state).await?;
-    let loaded = state.loaded.read().await;
+    let guard = state.loaded.read().await;
+    let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = window(&loaded.log, &page.range)?;
     let by_time = if matches!(log, Cow::Owned(_)) {
         time_order(&log)
@@ -366,7 +400,8 @@ async fn variants(
     Query(query): Query<VariantsQuery>,
 ) -> Result<Json<VariantsResponse>, ApiError> {
     ensure_fresh(&state).await?;
-    let loaded = state.loaded.read().await;
+    let guard = state.loaded.read().await;
+    let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = window(&loaded.log, &query.range)?;
     let mut report = ocel_mine::variants(&log, &query.object_type);
     let total_variants = report.variants.len();
@@ -394,7 +429,8 @@ async fn dfg(
     Query(query): Query<DfgQuery>,
 ) -> Result<Json<ocel_mine::Dfg>, ApiError> {
     ensure_fresh(&state).await?;
-    let loaded = state.loaded.read().await;
+    let guard = state.loaded.read().await;
+    let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = window(&loaded.log, &query.range)?;
     Ok(Json(ocel_mine::dfg(&log, &query.object_type)))
 }
@@ -413,7 +449,8 @@ async fn ocdfg(
     Query(query): Query<OcDfgQuery>,
 ) -> Result<Json<ocel_mine::OcDfg>, ApiError> {
     ensure_fresh(&state).await?;
-    let loaded = state.loaded.read().await;
+    let guard = state.loaded.read().await;
+    let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = window(&loaded.log, &query.range)?;
     let types: Vec<&str> = query
         .types
@@ -457,7 +494,8 @@ async fn cases(
     Query(query): Query<CasesQuery>,
 ) -> Result<Json<CasesPage>, ApiError> {
     ensure_fresh(&state).await?;
-    let loaded = state.loaded.read().await;
+    let guard = state.loaded.read().await;
+    let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = window(&loaded.log, &query.range)?;
     let all = ocel_mine::cases(&log, &query.object_type);
     let filtered: Vec<ocel_mine::CaseSummary> = if let Some(joined) = &query.variant {
@@ -510,7 +548,8 @@ async fn case_detail(
     Query(query): Query<CaseQuery>,
 ) -> Result<Json<CaseDetail>, ApiError> {
     ensure_fresh(&state).await?;
-    let loaded = state.loaded.read().await;
+    let guard = state.loaded.read().await;
+    let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = window(&loaded.log, &query.range)?;
     let by_time = if matches!(log, Cow::Owned(_)) {
         time_order(&log)
@@ -547,7 +586,8 @@ async fn leadtimes(
     Query(query): Query<DfgQuery>,
 ) -> Result<Json<ocel_mine::LeadTimeReport>, ApiError> {
     ensure_fresh(&state).await?;
-    let loaded = state.loaded.read().await;
+    let guard = state.loaded.read().await;
+    let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = window(&loaded.log, &query.range)?;
     Ok(Json(ocel_mine::lead_times(&log, &query.object_type)))
 }
@@ -594,7 +634,8 @@ async fn model(
     Query(query): Query<ModelQuery>,
 ) -> Result<Json<ModelResult>, ApiError> {
     ensure_fresh(&state).await?;
-    let loaded = state.loaded.read().await;
+    let guard = state.loaded.read().await;
+    let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = window(&loaded.log, &query.range)?;
     let result = match query.algo.as_deref().unwrap_or("inductive") {
         "inductive" => {
@@ -629,17 +670,61 @@ async fn model(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Status {
-    modified: DateTime<Utc>,
+    loaded: bool,
+    modified: Option<DateTime<Utc>>,
+    /// Where the sample would be saved — shown in the empty state.
+    data_dir: String,
 }
 
 #[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
 async fn status(State(state): State<Arc<AppState>>) -> Result<Json<Status>, ApiError> {
-    let modified = std::fs::metadata(&state.path)
+    let data_dir = state.data_dir.display().to_string();
+    let Some(path) = state.loaded.read().await.as_ref().map(|l| l.path.clone()) else {
+        return Ok(Json(Status {
+            loaded: false,
+            modified: None,
+            data_dir,
+        }));
+    };
+    let modified = std::fs::metadata(&path)
         .and_then(|m| m.modified())
         .map_err(|e| internal(&e))?;
     Ok(Json(Status {
-        modified: modified.into(),
+        loaded: true,
+        modified: Some(modified.into()),
+        data_dir,
+    }))
+}
+
+/// Fetch the official sample into the data directory (kept if already
+/// there) and make it the active log. Triggered only by an explicit click —
+/// the studio never reaches out on its own.
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn sample(State(state): State<Arc<AppState>>) -> Result<Json<Status>, ApiError> {
+    let target = state.data_dir.join(SAMPLE_FILE);
+    if !target.exists() {
+        let bytes = reqwest::get(SAMPLE_URL)
+            .await
+            .and_then(reqwest::Response::error_for_status)
+            .map_err(|e| internal(&e))?
+            .bytes()
+            .await
+            .map_err(|e| internal(&e))?;
+        std::fs::create_dir_all(&state.data_dir).map_err(|e| internal(&e))?;
+        let staging = state.data_dir.join(format!("{SAMPLE_FILE}.part"));
+        std::fs::write(&staging, &bytes).map_err(|e| internal(&e))?;
+        std::fs::rename(&staging, &target).map_err(|e| internal(&e))?;
+        eprintln!("fetched sample to {}", target.display());
+    }
+    let loaded = load(&target).map_err(|e| internal(&*e))?;
+    let modified = loaded.modified;
+    *state.loaded.write().await = Some(loaded);
+    Ok(Json(Status {
+        loaded: true,
+        modified: Some(modified.into()),
+        data_dir: state.data_dir.display().to_string(),
     }))
 }
 
