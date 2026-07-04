@@ -930,6 +930,10 @@ th.num {
   font-size: 12.5px;
 }
 
+.flower-warn {
+  color: var(--status-serious);
+}
+
 .empty-state {
   max-width: 520px;
   margin: 12vh auto 0;
