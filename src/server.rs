@@ -18,7 +18,7 @@ use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use std::borrow::Cow;
 use std::process::Stdio;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_embed::RustEmbed;
@@ -48,19 +48,25 @@ fn is_ocel_file(path: &Path) -> bool {
             .is_some_and(|n| !n.starts_with('.'))
 }
 
-/// The most recently modified OCEL file in the data directory, if any.
-/// The sources config is never a log (on macOS `config_dir` == `data_dir`).
-pub fn latest_log(dir: &Path) -> Option<PathBuf> {
-    let entries = std::fs::read_dir(dir).ok()?;
-    entries
+/// Workspace OCEL files, newest first. The sources config is never a log
+/// (on macOS `config_dir` == `data_dir`).
+fn logs_by_recency(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<PathBuf> = entries
         .filter_map(Result::ok)
         .map(|e| e.path())
         .filter(|p| is_ocel_file(p) && p.file_name() != Some(std::ffi::OsStr::new("sources.json")))
-        .max_by_key(|p| {
+        .collect();
+    paths.sort_by_key(|p| {
+        std::cmp::Reverse(
             std::fs::metadata(p)
                 .and_then(|m| m.modified())
-                .unwrap_or(SystemTime::UNIX_EPOCH)
-        })
+                .unwrap_or(SystemTime::UNIX_EPOCH),
+        )
+    });
+    paths
 }
 
 struct Loaded {
@@ -92,6 +98,23 @@ enum RunPhase {
     Failed,
 }
 
+/// A contract-v2 `progress` event, as last reported by the connector.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RunProgress {
+    stage: String,
+    done: u64,
+    total: Option<u64>,
+}
+
+/// A contract-v2 `done` summary.
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RunSummary {
+    events: u64,
+    objects: u64,
+}
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct RunState {
@@ -101,6 +124,78 @@ struct RunState {
     exit_code: Option<i32>,
     /// Last chunk of stderr, shown when a run fails.
     stderr_tail: Option<String>,
+    /// Live progress from contract-v2 connectors (None for v1).
+    progress: Option<RunProgress>,
+    /// Contract-v2 log events, capped.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    logs: Vec<String>,
+    /// Contract-v2 completion summary.
+    summary: Option<RunSummary>,
+}
+
+impl RunState {
+    fn running(started: DateTime<Utc>) -> RunState {
+        RunState {
+            state: RunPhase::Running,
+            started,
+            finished: None,
+            exit_code: None,
+            stderr_tail: None,
+            progress: None,
+            logs: Vec::new(),
+            summary: None,
+        }
+    }
+}
+
+const MAX_RUN_LOGS: usize = 50;
+
+/// Apply one stdout line to the run state. Contract v2: NDJSON events;
+/// anything unparseable or unknown is ignored, so v1 connectors (quiet or
+/// chatty stdout) never break.
+fn apply_v2_line(run: &mut RunState, line: &str) {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+        return;
+    };
+    match value.get("event").and_then(|e| e.as_str()) {
+        Some("progress") => {
+            run.progress = Some(RunProgress {
+                stage: value
+                    .get("stage")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("")
+                    .to_owned(),
+                done: value
+                    .get("done")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                total: value.get("total").and_then(serde_json::Value::as_u64),
+            });
+        }
+        Some("log") => {
+            if run.logs.len() < MAX_RUN_LOGS {
+                let level = value
+                    .get("level")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("info");
+                let message = value.get("message").and_then(|s| s.as_str()).unwrap_or("");
+                run.logs.push(format!("{level}: {message}"));
+            }
+        }
+        Some("done") => {
+            run.summary = Some(RunSummary {
+                events: value
+                    .get("events")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                objects: value
+                    .get("objects")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+            });
+        }
+        _ => {}
+    }
 }
 
 struct AppState {
@@ -137,24 +232,38 @@ fn save_sources(config_dir: &Path, sources: &[SourceConfig]) -> Result<(), ApiEr
 }
 
 pub async fn run(
-    initial: Option<PathBuf>,
+    explicit: Option<PathBuf>,
     data_dir: PathBuf,
     config_dir: PathBuf,
     port: u16,
 ) -> Result<(), Box<dyn Error>> {
-    let loaded = if let Some(path) = initial {
-        let loaded = load(&path)?;
-        eprintln!(
+    // an explicitly named log must open or we fail loudly; the auto-pick
+    // walks the workspace newest-first and skips unreadable files, so one
+    // broken connector output never blocks startup
+    let loaded = if let Some(path) = explicit {
+        Some(load(&path)?)
+    } else {
+        let mut found = None;
+        for path in logs_by_recency(&data_dir) {
+            match load(&path) {
+                Ok(loaded) => {
+                    found = Some(loaded);
+                    break;
+                }
+                Err(err) => eprintln!("skipping unreadable {}: {err}", path.display()),
+            }
+        }
+        found
+    };
+    match &loaded {
+        Some(loaded) => eprintln!(
             "opened {}: {} events / {} objects",
-            path.display(),
+            loaded.path.display(),
             loaded.log.events.len(),
             loaded.log.objects.len()
-        );
-        Some(loaded)
-    } else {
-        eprintln!("no log loaded — the studio offers the official sample on first visit");
-        None
-    };
+        ),
+        None => eprintln!("no log loaded — the studio offers the official sample on first visit"),
+    }
     let sources = load_sources(&config_dir);
     let state = Arc::new(AppState {
         data_dir,
@@ -1033,16 +1142,7 @@ async fn sources_run(
         {
             return Err((StatusCode::CONFLICT, "source is already running".to_owned()));
         }
-        runs.insert(
-            name.clone(),
-            RunState {
-                state: RunPhase::Running,
-                started: Utc::now(),
-                finished: None,
-                exit_code: None,
-                stderr_tail: None,
-            },
-        );
+        runs.insert(name.clone(), RunState::running(Utc::now()));
     }
 
     std::fs::create_dir_all(&state.data_dir).map_err(|e| internal(&e))?;
@@ -1050,22 +1150,17 @@ async fn sources_run(
         .args(&config.args)
         .current_dir(&state.data_dir)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn();
     let mut child = match spawned {
         Ok(child) => child,
         Err(err) => {
-            state.runs.write().await.insert(
-                name.clone(),
-                RunState {
-                    state: RunPhase::Failed,
-                    started: Utc::now(),
-                    finished: Some(Utc::now()),
-                    exit_code: None,
-                    stderr_tail: Some(err.to_string()),
-                },
-            );
+            let mut failed = RunState::running(Utc::now());
+            failed.state = RunPhase::Failed;
+            failed.finished = Some(Utc::now());
+            failed.stderr_tail = Some(err.to_string());
+            state.runs.write().await.insert(name.clone(), failed);
             return Ok(Json(source_views(&state).await));
         }
     };
@@ -1073,22 +1168,42 @@ async fn sources_run(
     let watcher_state = Arc::clone(&state);
     tokio::spawn(async move {
         const TAIL: usize = 8 * 1024;
-        let mut tail: Vec<u8> = Vec::new();
-        if let Some(mut stderr) = child.stderr.take() {
-            let mut buf = [0u8; 4096];
-            loop {
-                match stderr.read(&mut buf).await {
-                    Ok(0) | Err(_) => break,
-                    Ok(n) => {
-                        tail.extend_from_slice(&buf[..n]);
-                        if tail.len() > TAIL {
-                            let cut = tail.len() - TAIL;
-                            tail.drain(..cut);
+        let stderr = child.stderr.take();
+        let stdout = child.stdout.take();
+
+        let read_stderr = async {
+            let mut tail: Vec<u8> = Vec::new();
+            if let Some(mut stderr) = stderr {
+                let mut buf = [0u8; 4096];
+                loop {
+                    match stderr.read(&mut buf).await {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => {
+                            tail.extend_from_slice(&buf[..n]);
+                            if tail.len() > TAIL {
+                                let cut = tail.len() - TAIL;
+                                tail.drain(..cut);
+                            }
                         }
                     }
                 }
             }
-        }
+            tail
+        };
+        // contract v2: NDJSON events, applied live so the UI poll sees them
+        let read_stdout = async {
+            if let Some(stdout) = stdout {
+                let mut lines = tokio::io::BufReader::new(stdout).lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    let mut runs = watcher_state.runs.write().await;
+                    if let Some(run) = runs.get_mut(&name) {
+                        apply_v2_line(run, &line);
+                    }
+                }
+            }
+        };
+        let (tail, ()) = tokio::join!(read_stderr, read_stdout);
+
         let status = child.wait().await;
         let (phase, exit_code) = match status {
             Ok(status) if status.success() => (RunPhase::Succeeded, status.code()),

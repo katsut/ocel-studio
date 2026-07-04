@@ -416,12 +416,26 @@ export const openLog = async (name: string): Promise<Status> => {
   return res.json() as Promise<Status>;
 };
 
+export interface RunProgress {
+  stage: string;
+  done: number;
+  total: number | null;
+}
+
+export interface RunSummary {
+  events: number;
+  objects: number;
+}
+
 export interface RunState {
   state: "running" | "succeeded" | "failed";
   started: string;
   finished: string | null;
   exitCode: number | null;
   stderrTail: string | null;
+  progress: RunProgress | null;
+  logs?: string[];
+  summary: RunSummary | null;
 }
 
 export interface SourceView {

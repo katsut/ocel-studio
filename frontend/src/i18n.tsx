@@ -152,6 +152,7 @@ export interface Messages {
   srcFailed: (exitCode: number | null) => string;
   srcNamePlaceholder: string;
   srcCommandPlaceholder: string;
+  srcSummary: (events: string, objects: string) => string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -348,6 +349,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     srcFailed: (exitCode) => `failed${exitCode === null ? "" : ` (exit ${exitCode})`}`,
     srcNamePlaceholder: "name (e.g. convert-sample)",
     srcCommandPlaceholder: 'command (e.g. ocel convert order-management.sqlite converted.json)',
+    srcSummary: (events, objects) => `${events} events / ${objects} objects`,
   },
   ja: {
     events: "イベント",
@@ -542,6 +544,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     srcFailed: (exitCode) => `失敗${exitCode === null ? "" : `（exit ${exitCode}）`}`,
     srcNamePlaceholder: "名前（例: convert-sample）",
     srcCommandPlaceholder: "コマンド（例: ocel convert order-management.sqlite converted.json）",
+    srcSummary: (events, objects) => `${events} イベント / ${objects} オブジェクト`,
   },
 };
 

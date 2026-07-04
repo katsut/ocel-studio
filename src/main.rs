@@ -34,9 +34,7 @@ fn config_dir() -> PathBuf {
 #[tokio::main]
 async fn main() -> ExitCode {
     let cli = Cli::parse();
-    let data_dir = data_dir();
-    let initial = cli.log.or_else(|| server::latest_log(&data_dir));
-    match server::run(initial, data_dir, config_dir(), cli.port).await {
+    match server::run(cli.log, data_dir(), config_dir(), cli.port).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("error: {err}");
