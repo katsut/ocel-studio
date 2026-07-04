@@ -213,6 +213,8 @@ export interface HeuristicsNet {
   withEvents: number;
   activities: HeuristicActivity[];
   edges: HeuristicEdge[];
+  coveredSuccessions: number;
+  totalSuccessions: number;
 }
 
 export type Algo = "inductive" | "alpha" | "heuristics";
@@ -237,9 +239,24 @@ export const DEFAULT_MODEL_PARAMS: ModelParams = {
   minEdge: 1,
 };
 
+export interface MisfitVariant {
+  activities: string[];
+  count: number;
+  example: string;
+}
+
+export interface ReplayReport {
+  objectType: string;
+  traces: number;
+  fitting: number;
+  variants: number;
+  fittingVariants: number;
+  misfits: MisfitVariant[];
+}
+
 export type ModelResult =
-  | { algo: "inductive"; tree: ProcessTree }
-  | { algo: "alpha"; net: PetriNet }
+  | { algo: "inductive"; tree: ProcessTree; replay: ReplayReport }
+  | { algo: "alpha"; net: PetriNet; replay: ReplayReport }
   | { algo: "heuristics"; net: HeuristicsNet };
 
 export const fetchSummary = (range: Range | null) =>

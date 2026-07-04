@@ -83,6 +83,12 @@ export interface Messages {
   modelWarnings: string;
   depLabel: (dep: string) => string;
   heuristicsEdgeCount: (n: number) => string;
+  fitnessLine: (fitting: string, traces: string, pct: string) => string;
+  fitnessAllFit: string;
+  misfitHeader: (n: string) => string;
+  misfitHint: string;
+  fitnessNote: string;
+  coverageLine: (covered: string, total: string, pct: string) => string;
   variantsPanel: string;
   objectTypeLabel: string;
   shareCol: string;
@@ -228,6 +234,16 @@ export const MESSAGES: Record<Lang, Messages> = {
     modelWarnings: "Limits hit on this log",
     depLabel: (dep) => `dependency ${dep}`,
     heuristicsEdgeCount: (n) => `${n} connections kept`,
+    fitnessLine: (fitting, traces, pct) =>
+      `This model replays ${fitting} of ${traces} cases exactly (${pct}%).`,
+    fitnessAllFit: "This model replays every case exactly.",
+    misfitHeader: (n) => `Paths the model cannot replay — ${n} cases`,
+    misfitHint:
+      "These cases moved outside the model. Click a row to see the real cases behind it.",
+    fitnessNote:
+      "Loose structures replay almost anything (a flower loop fits everything), so a high number is not automatically a good model — read it together with how simple the structure is.",
+    coverageLine: (covered, total, pct) =>
+      `The kept arrows explain ${covered} of ${total} observed moves (${pct}%).`,
     variantsPanel: "Variants",
     objectTypeLabel: "Object type",
     shareCol: "Share",
@@ -371,6 +387,16 @@ export const MESSAGES: Record<Lang, Messages> = {
     modelWarnings: "このログで当たった限界",
     depLabel: (dep) => `依存度 ${dep}`,
     heuristicsEdgeCount: (n) => `${n} 本のつながりを表示`,
+    fitnessLine: (fitting, traces, pct) =>
+      `このモデルは ${traces} ケース中 ${fitting} ケースをそのまま再生できます（${pct}%）。`,
+    fitnessAllFit: "このモデルはすべてのケースをそのまま再生できます。",
+    misfitHeader: (n) => `再生できない進み方 — ${n} ケース`,
+    misfitHint:
+      "モデルの外の動きをしたケースです。行をクリックすると実際のケースを確認できます。",
+    fitnessNote:
+      "緩い構造ほど何でも再生できます（フラワー型のループは全部に当てはまる）ので、高い数字＝良いモデルとは限りません。構造の単純さと合わせて読んでください。",
+    coverageLine: (covered, total, pct) =>
+      `観測された移動 ${total} 件のうち ${covered} 件をこの矢印で説明できます（${pct}%）。`,
     variantsPanel: "よくある進み方",
     objectTypeLabel: "オブジェクトの種類",
     shareCol: "割合",
