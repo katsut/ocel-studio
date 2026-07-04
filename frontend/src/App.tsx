@@ -364,7 +364,15 @@ function Dashboard({
               />
             ) : null}
             {screen === "model" && objectType !== "" ? (
-              <ModelPanel objectType={objectType} range={range} modified={summary.modified} />
+              <ModelPanel
+                objectType={objectType}
+                range={range}
+                modified={summary.modified}
+                onShowCases={(activities) => {
+                  setCaseFilter({ kind: "variant", activities });
+                  setScreen("cases");
+                }}
+              />
             ) : null}
             {screen === "data" ? <EventsPanel page={page} lang={lang} onPage={setOffset} /> : null}
           </main>

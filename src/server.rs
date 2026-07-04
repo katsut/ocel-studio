@@ -575,9 +575,17 @@ struct ModelQuery {
 #[derive(Serialize)]
 #[serde(tag = "algo", rename_all = "camelCase")]
 enum ModelResult {
-    Inductive { tree: ocel_mine::ProcessTree },
-    Alpha { net: ocel_mine::PetriNet },
-    Heuristics { net: ocel_mine::HeuristicsNet },
+    Inductive {
+        tree: ocel_mine::ProcessTree,
+        replay: ocel_mine::ReplayReport,
+    },
+    Alpha {
+        net: ocel_mine::PetriNet,
+        replay: ocel_mine::ReplayReport,
+    },
+    Heuristics {
+        net: ocel_mine::HeuristicsNet,
+    },
 }
 
 #[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
@@ -589,16 +597,20 @@ async fn model(
     let loaded = state.loaded.read().await;
     let log = window(&loaded.log, &query.range)?;
     let result = match query.algo.as_deref().unwrap_or("inductive") {
-        "inductive" => ModelResult::Inductive {
-            tree: ocel_mine::inductive(
+        "inductive" => {
+            let tree = ocel_mine::inductive(
                 &log,
                 &query.object_type,
                 query.noise.unwrap_or(0.0).clamp(0.0, 1.0),
-            ),
-        },
-        "alpha" => ModelResult::Alpha {
-            net: ocel_mine::alpha(&log, &query.object_type),
-        },
+            );
+            let replay = ocel_mine::tree_replay(&log, &query.object_type, &tree);
+            ModelResult::Inductive { tree, replay }
+        }
+        "alpha" => {
+            let net = ocel_mine::alpha(&log, &query.object_type);
+            let replay = ocel_mine::net_replay(&log, &query.object_type, &net);
+            ModelResult::Alpha { net, replay }
+        }
         "heuristics" => {
             let params = ocel_mine::HeuristicsParams {
                 dependency_threshold: query.dependency.unwrap_or(0.9).clamp(0.0, 1.0),

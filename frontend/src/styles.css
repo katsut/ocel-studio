@@ -906,6 +906,30 @@ th.num {
   opacity: 0.85;
 }
 
+.fitness {
+  margin: 2px 0 8px;
+}
+
+.fitness-line {
+  margin: 4px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.misfits summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--status-serious);
+}
+
+.misfits table {
+  margin-top: 4px;
+}
+
+.misfits td {
+  font-size: 12.5px;
+}
+
 .tree-scroll {
   overflow-x: auto;
   padding: 8px 2px;

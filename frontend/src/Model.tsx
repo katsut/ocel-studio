@@ -11,6 +11,7 @@ import {
   type PetriNet,
   type ProcessTree,
   type Range,
+  type ReplayReport,
 } from "./api.ts";
 import { useMessages, type Messages } from "./i18n.tsx";
 
@@ -281,14 +282,71 @@ function PetriView({ net }: { net: PetriNet }) {
   );
 }
 
+const MISFIT_ROWS = 5;
+
+function FitnessStrip({
+  replay,
+  onShowCases,
+}: {
+  replay: ReplayReport;
+  onShowCases: (activities: string[]) => void;
+}) {
+  const t = useMessages();
+  const misfitTraces = replay.traces - replay.fitting;
+  const pct = replay.traces > 0 ? ((replay.fitting / replay.traces) * 100).toFixed(1) : "0";
+  return (
+    <div className="fitness">
+      <p className="fitness-line">
+        {replay.fitting === replay.traces
+          ? t.fitnessAllFit
+          : t.fitnessLine(
+              replay.fitting.toLocaleString(),
+              replay.traces.toLocaleString(),
+              pct,
+            )}
+      </p>
+      {replay.misfits.length > 0 ? (
+        <details className="misfits">
+          <summary>{t.misfitHeader(misfitTraces.toLocaleString())}</summary>
+          <p className="muted guide">{t.misfitHint}</p>
+          <table>
+            <tbody>
+              {replay.misfits.slice(0, MISFIT_ROWS).map((misfit) => (
+                <tr
+                  key={misfit.activities.join("")}
+                  className="row-link"
+                  onClick={() => onShowCases(misfit.activities)}
+                >
+                  <td className="num">{misfit.count.toLocaleString()}</td>
+                  <td>{misfit.activities.join(" → ")}</td>
+                  <td className="num">
+                    <span className="link-button">{t.showCases} →</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {replay.misfits.length > MISFIT_ROWS ? (
+            <p className="muted">
+              {t.moreVariants(MISFIT_ROWS, replay.misfits.length)}
+            </p>
+          ) : null}
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ModelPanel({
   objectType,
   range,
   modified,
+  onShowCases,
 }: {
   objectType: string;
   range: Range | null;
   modified: string;
+  onShowCases: (activities: string[]) => void;
 }) {
   const t = useMessages();
   const [staged, setStaged] = useState<ModelParams>(DEFAULT_MODEL_PARAMS);
@@ -412,11 +470,26 @@ export default function ModelPanel({
       {error ? <div className="error">{error}</div> : null}
       {result ? (
         result.algo === "inductive" ? (
-          <div className="tree-scroll">
-            <TreeNode tree={result.tree} />
-          </div>
+          <>
+            <FitnessStrip replay={result.replay} onShowCases={onShowCases} />
+            <div className="tree-scroll">
+              <TreeNode tree={result.tree} />
+            </div>
+          </>
         ) : result.algo === "heuristics" ? (
           <div className="flow-scroll">
+            <p className="fitness-line">
+              {t.coverageLine(
+                result.net.coveredSuccessions.toLocaleString(),
+                result.net.totalSuccessions.toLocaleString(),
+                result.net.totalSuccessions > 0
+                  ? (
+                      (result.net.coveredSuccessions / result.net.totalSuccessions) *
+                      100
+                    ).toFixed(1)
+                  : "0",
+              )}
+            </p>
             <p className="muted">{t.heuristicsEdgeCount(result.net.edges.length)}</p>
             <HeuristicsView net={result.net} t={t} />
           </div>
@@ -427,13 +500,17 @@ export default function ModelPanel({
                 {t.modelWarnings}: {result.net.warnings.join(" · ")}
               </p>
             ) : null}
+            <FitnessStrip replay={result.replay} onShowCases={onShowCases} />
             <PetriView net={result.net} />
           </div>
         )
       ) : (
         <div className="loading">{t.loading}</div>
       )}
-      <p className="muted guide">{hints[applied.algo]}</p>
+      <p className="muted guide">
+        {hints[applied.algo]}
+        {applied.algo !== "heuristics" ? ` ${t.fitnessNote}` : ""}
+      </p>
     </div>
   );
 }
