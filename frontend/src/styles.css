@@ -159,7 +159,10 @@ header {
 
 .src-command {
   font-size: 12px;
-  word-break: break-all;
+  max-width: 460px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stderr-tail {
@@ -172,6 +175,42 @@ header {
   word-break: break-all;
   max-height: 160px;
   overflow-y: auto;
+}
+
+.run-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 6px;
+}
+
+.progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--chip);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.progress-fill.indeterminate {
+  width: 30%;
+  animation: progress-slide 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes progress-slide {
+  from {
+    margin-left: 0;
+  }
+  to {
+    margin-left: 70%;
+  }
 }
 
 .source-form {

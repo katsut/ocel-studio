@@ -40,11 +40,17 @@ function SourceRow({
   const run = source.run;
   const running = run?.state === "running";
   const locale = lang === "ja" ? "ja-JP" : "en-US";
+  const progress = running ? run.progress : null;
   return (
     <>
       <tr>
         <td className="mono">{source.name}</td>
-        <td className="mono src-command">{joinCommandLine(source.command, source.args)}</td>
+        <td
+          className="mono src-command"
+          title={joinCommandLine(source.command, source.args)}
+        >
+          {joinCommandLine(source.command, source.args)}
+        </td>
         <td>
           {run === null ? (
             <span className="muted">—</span>
@@ -53,6 +59,12 @@ function SourceRow({
           ) : run.state === "succeeded" ? (
             <span className="meta-ok">
               {t.srcSucceeded(new Date(run.finished ?? run.started).toLocaleString(locale))}
+              {run.summary
+                ? ` — ${t.srcSummary(
+                    run.summary.events.toLocaleString(),
+                    run.summary.objects.toLocaleString(),
+                  )}`
+                : ""}
             </span>
           ) : (
             <span className="meta-warn">{t.srcFailed(run.exitCode)}</span>
@@ -67,6 +79,39 @@ function SourceRow({
           </button>
         </td>
       </tr>
+      {progress ? (
+        <tr>
+          <td colSpan={4}>
+            <div className="run-progress">
+              <span className="muted">
+                {progress.stage}{" "}
+                {progress.total !== null
+                  ? `${progress.done.toLocaleString()} / ${progress.total.toLocaleString()}`
+                  : progress.done.toLocaleString()}
+              </span>
+              <div className="progress-track">
+                <div
+                  className={
+                    progress.total !== null ? "progress-fill" : "progress-fill indeterminate"
+                  }
+                  style={
+                    progress.total !== null && progress.total > 0
+                      ? { width: `${Math.min(100, (progress.done / progress.total) * 100)}%` }
+                      : undefined
+                  }
+                />
+              </div>
+            </div>
+          </td>
+        </tr>
+      ) : null}
+      {run && run.logs && run.logs.length > 0 ? (
+        <tr>
+          <td colSpan={4}>
+            <pre className="stderr-tail">{run.logs.join("\n")}</pre>
+          </td>
+        </tr>
+      ) : null}
       {run?.state === "failed" && run.stderrTail ? (
         <tr>
           <td colSpan={4}>
