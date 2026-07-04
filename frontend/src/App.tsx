@@ -3,12 +3,14 @@ import {
   caseLikeType,
   clearApiCache,
   fetchEvents,
+  fetchSample,
   fetchStatus,
   fetchSummary,
   typeSlots,
   type CaseFilter,
   type EventsPage,
   type Range,
+  type Status,
   type Summary,
   type TypeCount,
 } from "./api.ts";
@@ -34,6 +36,37 @@ const PAGE_SIZE = 50;
 const POLL_MS = 2000;
 
 export type Screen = "overview" | "map" | "paths" | "cases" | "model" | "data";
+
+function EmptyState({ dataDir }: { dataDir: string }) {
+  const t = useMessages();
+  const [fetching, setFetching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const start = () => {
+    setFetching(true);
+    setError(null);
+    fetchSample()
+      // the status poll picks the loaded log up on its next tick
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+        setFetching(false);
+      });
+  };
+
+  return (
+    <div className="empty-state">
+      <img className="empty-logo" src="/favicon.svg" alt="" />
+      <h1>{t.emptyTitle}</h1>
+      <p>{t.emptyBody}</p>
+      <button className="rerun-button" disabled={fetching} onClick={start}>
+        {fetching ? t.emptyDownloading : t.emptySampleButton}
+      </button>
+      <p className="muted">{t.emptySampleNote(dataDir)}</p>
+      <p className="muted">{t.emptyCliHint}</p>
+      {error ? <div className="error">{error}</div> : null}
+    </div>
+  );
+}
 
 function formatTime(iso: string, lang: Lang): string {
   return new Date(iso).toLocaleString(lang === "ja" ? "ja-JP" : "en-US");
@@ -151,6 +184,7 @@ function Dashboard({
   const [chosenType, setChosenType] = useState<string>("");
   const [caseFilter, setCaseFilter] = useState<CaseFilter | null>(null);
   const [range, setRange] = useState<Range | null>(null);
+  const [status, setStatus] = useState<Status | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [page, setPage] = useState<EventsPage | null>(null);
   const [offset, setOffset] = useState(0);
@@ -167,21 +201,28 @@ function Dashboard({
     }
   }, []);
 
-  useEffect(() => {
-    void refresh(offset, range);
-  }, [refresh, offset, range]);
+  const loaded = status?.loaded === true;
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    if (loaded) {
+      void refresh(offset, range);
+    }
+  }, [loaded, refresh, offset, range]);
+
+  useEffect(() => {
+    const check = () => {
       fetchStatus()
-        .then((status) => {
-          if (summary && status.modified !== summary.modified) {
+        .then((next) => {
+          setStatus(next);
+          if (next.loaded && summary && next.modified !== summary.modified) {
             clearApiCache();
             void refresh(offset, range);
           }
         })
         .catch(() => setError(t.serverUnreachable));
-    }, POLL_MS);
+    };
+    check();
+    const timer = setInterval(check, POLL_MS);
     return () => clearInterval(timer);
   }, [summary, offset, range, refresh, t]);
 
@@ -377,6 +418,8 @@ function Dashboard({
             {screen === "data" ? <EventsPanel page={page} lang={lang} onPage={setOffset} /> : null}
           </main>
         </div>
+      ) : status && !status.loaded ? (
+        <EmptyState dataDir={status.dataDir} />
       ) : (
         <div className="loading">{error ?? t.intro}</div>
       )}

@@ -930,6 +930,39 @@ th.num {
   font-size: 12.5px;
 }
 
+.empty-state {
+  max-width: 520px;
+  margin: 12vh auto 0;
+  padding: 0 24px;
+  text-align: center;
+}
+
+.empty-state h1 {
+  font-size: 22px;
+  margin: 14px 0 6px;
+}
+
+.empty-state p {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.empty-state .muted {
+  font-size: 12.5px;
+}
+
+.empty-state .rerun-button {
+  margin: 10px 0 14px;
+  padding: 9px 22px;
+  font-size: 14px;
+}
+
+.empty-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
 .tree-scroll {
   overflow-x: auto;
   padding: 8px 2px;

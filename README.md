@@ -23,13 +23,18 @@ Design decisions are recorded in [docs/adr](docs/adr/).
 ```sh
 pnpm --dir frontend install
 pnpm --dir frontend build          # embedded into the binary at compile time
-cargo run --release -- path/to/log.sqlite
+cargo run --release
 # → ocel-studio running at http://127.0.0.1:6235/
 ```
 
-Try it with an official sample log, e.g. the
-[Order Management](https://zenodo.org/records/18373906) dataset (21K events) or the
-PM4Py `ocel20_example` fixtures.
+No log yet? The studio starts empty and offers to fetch the official
+[Order Management](https://zenodo.org/records/18373906) sample (21K events,
+~35 MB) into its data directory with one click — it reopens the most recent
+log there on the next start. To open your own file:
+
+```sh
+cargo run --release -- path/to/log.sqlite   # .json / .sqlite / .xml
+```
 
 ## The ocel family
 
