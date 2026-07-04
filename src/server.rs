@@ -62,6 +62,7 @@ pub async fn run(path: PathBuf, port: u16) -> Result<(), Box<dyn Error>> {
         .route("/api/events", get(events))
         .route("/api/variants", get(variants))
         .route("/api/dfg", get(dfg))
+        .route("/api/ocdfg", get(ocdfg))
         .route("/api/model", get(model))
         .route("/api/leadtimes", get(leadtimes))
         .route("/api/cases", get(cases))
@@ -396,6 +397,34 @@ async fn dfg(
     let loaded = state.loaded.read().await;
     let log = window(&loaded.log, &query.range)?;
     Ok(Json(ocel_mine::dfg(&log, &query.object_type)))
+}
+
+#[derive(Deserialize)]
+struct OcDfgQuery {
+    #[serde(flatten)]
+    range: RangeQuery,
+    /// Comma-separated object types to overlay.
+    types: String,
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn ocdfg(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<OcDfgQuery>,
+) -> Result<Json<ocel_mine::OcDfg>, ApiError> {
+    ensure_fresh(&state).await?;
+    let loaded = state.loaded.read().await;
+    let log = window(&loaded.log, &query.range)?;
+    let types: Vec<&str> = query
+        .types
+        .split(',')
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        .collect();
+    if types.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "types is empty".to_owned()));
+    }
+    Ok(Json(ocel_mine::oc_dfg(&log, &types)))
 }
 
 #[derive(Deserialize)]
