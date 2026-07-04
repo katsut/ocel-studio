@@ -20,7 +20,8 @@ rust-embed = "8"
 mime_guess = "2"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 dirs = "6"
-keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+# Linux uses the pure-Rust zbus secret-service backend — no system libdbus
+keyring = { version = "3", features = ["apple-native", "windows-native", "async-secret-service", "tokio", "crypto-rust"] }
 
 [lints.rust]
 unsafe_code = "forbid"
