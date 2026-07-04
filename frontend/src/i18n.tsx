@@ -89,6 +89,8 @@ export interface Messages {
   misfitHint: string;
   fitnessNote: string;
   coverageLine: (covered: string, total: string, pct: string) => string;
+  simplicityLine: (activities: string, operators: string) => string;
+  flowerBadge: string;
   variantsPanel: string;
   objectTypeLabel: string;
   shareCol: string;
@@ -250,6 +252,9 @@ export const MESSAGES: Record<Lang, Messages> = {
       "Loose structures replay almost anything (a flower loop fits everything), so a high number is not automatically a good model — read it together with how simple the structure is.",
     coverageLine: (covered, total, pct) =>
       `The kept arrows explain ${covered} of ${total} observed moves (${pct}%).`,
+    simplicityLine: (activities, operators) =>
+      `Structure size: ${activities} activities, ${operators} branch/repeat points.`,
+    flowerBadge: "contains a flower part (replays anything — fitness reads high)",
     variantsPanel: "Variants",
     objectTypeLabel: "Object type",
     shareCol: "Share",
@@ -411,6 +416,9 @@ export const MESSAGES: Record<Lang, Messages> = {
       "緩い構造ほど何でも再生できます（フラワー型のループは全部に当てはまる）ので、高い数字＝良いモデルとは限りません。構造の単純さと合わせて読んでください。",
     coverageLine: (covered, total, pct) =>
       `観測された移動 ${total} 件のうち ${covered} 件をこの矢印で説明できます（${pct}%）。`,
+    simplicityLine: (activities, operators) =>
+      `構造の大きさ: 活動 ${activities}・分岐/繰り返し ${operators}。`,
+    flowerBadge: "フラワー構造を含む（何でも再生できるため適合度は高く出ます）",
     variantsPanel: "よくある進み方",
     objectTypeLabel: "オブジェクトの種類",
     shareCol: "割合",

@@ -284,6 +284,57 @@ function PetriView({ net }: { net: PetriNet }) {
 
 const MISFIT_ROWS = 5;
 
+interface Simplicity {
+  activities: number;
+  operators: number;
+  flower: boolean;
+}
+
+function countActivities(tree: ProcessTree): number {
+  if (tree.type === "activity") {
+    return 1;
+  }
+  if (tree.type === "tau") {
+    return 0;
+  }
+  return tree.children.reduce((sum, child) => sum + countActivities(child), 0);
+}
+
+/// Size of the structure, plus whether it contains a flower part: a loop
+/// with a silent body over 3+ activities replays anything — the exact case
+/// the fitness note warns about.
+function measureSimplicity(tree: ProcessTree): Simplicity {
+  if (tree.type === "activity" || tree.type === "tau") {
+    return { activities: countActivities(tree), operators: 0, flower: false };
+  }
+  const flowerHere =
+    tree.type === "loop" &&
+    tree.children[0]?.type === "tau" &&
+    tree.children.slice(1).reduce((sum, child) => sum + countActivities(child), 0) >= 3;
+  return tree.children.reduce(
+    (acc, child) => {
+      const sub = measureSimplicity(child);
+      return {
+        activities: acc.activities + sub.activities,
+        operators: acc.operators + sub.operators,
+        flower: acc.flower || sub.flower,
+      };
+    },
+    { activities: 0, operators: 1, flower: flowerHere },
+  );
+}
+
+function SimplicityLine({ tree }: { tree: ProcessTree }) {
+  const t = useMessages();
+  const s = measureSimplicity(tree);
+  return (
+    <p className="muted">
+      {t.simplicityLine(s.activities.toLocaleString(), s.operators.toLocaleString())}
+      {s.flower ? <span className="flower-warn"> ⚠ {t.flowerBadge}</span> : null}
+    </p>
+  );
+}
+
 function FitnessStrip({
   replay,
   onShowCases,
@@ -472,6 +523,7 @@ export default function ModelPanel({
         result.algo === "inductive" ? (
           <>
             <FitnessStrip replay={result.replay} onShowCases={onShowCases} />
+            <SimplicityLine tree={result.tree} />
             <div className="tree-scroll">
               <TreeNode tree={result.tree} />
             </div>
