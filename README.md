@@ -15,8 +15,12 @@ The discovery loop is complete: one screen per question (overview / map / paths 
 cases / model / data), a global carried context (object type, time range), and
 every claim lands on real cases within two clicks. The log live-reloads when the
 file changes on disk, so an incrementally synced log behaves like a living
-dashboard. Data-source management (connector orchestration) is the next phase.
-Design decisions are recorded in [docs/adr](docs/adr/).
+dashboard. The platform phase is underway: the workspace screen lists every log
+in the studio folder and switches between them, and registered data sources
+(any command following the [connector contract](docs/connector-contract.md))
+run on click and drop fresh logs into the workspace. Progress protocol (v2) and
+keychain-backed credentials are next. Design decisions are recorded in
+[docs/adr](docs/adr/).
 
 ## Quickstart
 

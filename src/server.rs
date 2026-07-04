@@ -11,12 +11,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use axum::extract::{Query, State};
+use axum::extract::{Path as UrlPath, Query, State};
 use axum::http::{header, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use std::borrow::Cow;
+use std::process::Stdio;
+use tokio::io::AsyncReadExt;
 
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_embed::RustEmbed;
@@ -47,12 +49,13 @@ fn is_ocel_file(path: &Path) -> bool {
 }
 
 /// The most recently modified OCEL file in the data directory, if any.
+/// The sources config is never a log (on macOS `config_dir` == `data_dir`).
 pub fn latest_log(dir: &Path) -> Option<PathBuf> {
     let entries = std::fs::read_dir(dir).ok()?;
     entries
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .filter(|p| is_ocel_file(p))
+        .filter(|p| is_ocel_file(p) && p.file_name() != Some(std::ffi::OsStr::new("sources.json")))
         .max_by_key(|p| {
             std::fs::metadata(p)
                 .and_then(|m| m.modified())
@@ -69,16 +72,74 @@ struct Loaded {
     type_stats: Vec<ocel_mine::TypeStats>,
 }
 
+/// A registered data source: a command that (re)writes one OCEL file in the
+/// workspace (connector contract v1). Secrets are out of scope here — env
+/// injection from the OS keychain arrives with contract v2 support.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SourceConfig {
+    name: String,
+    command: String,
+    #[serde(default)]
+    args: Vec<String>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum RunPhase {
+    Running,
+    Succeeded,
+    Failed,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RunState {
+    state: RunPhase,
+    started: DateTime<Utc>,
+    finished: Option<DateTime<Utc>>,
+    exit_code: Option<i32>,
+    /// Last chunk of stderr, shown when a run fails.
+    stderr_tail: Option<String>,
+}
+
 struct AppState {
     data_dir: PathBuf,
+    config_dir: PathBuf,
     loaded: RwLock<Option<Loaded>>,
+    sources: RwLock<Vec<SourceConfig>>,
+    runs: RwLock<HashMap<String, RunState>>,
 }
 
 type ApiError = (StatusCode, String);
 
+fn sources_file(config_dir: &Path) -> PathBuf {
+    config_dir.join("sources.json")
+}
+
+fn load_sources(config_dir: &Path) -> Vec<SourceConfig> {
+    let Ok(raw) = std::fs::read_to_string(sources_file(config_dir)) else {
+        return Vec::new();
+    };
+    match serde_json::from_str(&raw) {
+        Ok(sources) => sources,
+        Err(err) => {
+            eprintln!("ignoring unreadable sources.json: {err}");
+            Vec::new()
+        }
+    }
+}
+
+fn save_sources(config_dir: &Path, sources: &[SourceConfig]) -> Result<(), ApiError> {
+    std::fs::create_dir_all(config_dir).map_err(|e| internal(&e))?;
+    let raw = serde_json::to_string_pretty(sources).map_err(|e| internal(&e))?;
+    std::fs::write(sources_file(config_dir), raw).map_err(|e| internal(&e))
+}
+
 pub async fn run(
     initial: Option<PathBuf>,
     data_dir: PathBuf,
+    config_dir: PathBuf,
     port: u16,
 ) -> Result<(), Box<dyn Error>> {
     let loaded = if let Some(path) = initial {
@@ -94,9 +155,13 @@ pub async fn run(
         eprintln!("no log loaded — the studio offers the official sample on first visit");
         None
     };
+    let sources = load_sources(&config_dir);
     let state = Arc::new(AppState {
         data_dir,
+        config_dir,
         loaded: RwLock::new(loaded),
+        sources: RwLock::new(sources),
+        runs: RwLock::new(HashMap::new()),
     });
 
     let app = Router::new()
@@ -113,6 +178,9 @@ pub async fn run(
         .route("/api/sample", post(sample))
         .route("/api/logs", get(logs))
         .route("/api/logs/open", post(open_log))
+        .route("/api/sources", get(sources_list).post(sources_upsert))
+        .route("/api/sources/{name}", delete(sources_delete))
+        .route("/api/sources/{name}/run", post(sources_run))
         .fallback(get(asset))
         .with_state(state);
 
@@ -782,7 +850,9 @@ async fn logs(State(state): State<Arc<AppState>>) -> Result<Json<LogsResponse>, 
     if let Ok(entries) = std::fs::read_dir(&state.data_dir) {
         for entry in entries.filter_map(Result::ok) {
             let path = entry.path();
-            if !is_ocel_file(&path) {
+            // on macOS config_dir == data_dir, so the sources file would
+            // otherwise show up as a .json log
+            if !is_ocel_file(&path) || path == sources_file(&state.config_dir) {
                 continue;
             }
             let Ok(meta) = entry.metadata() else {
@@ -848,6 +918,194 @@ async fn open_log(
         modified: Some(modified.into()),
         data_dir: state.data_dir.display().to_string(),
     }))
+}
+
+fn valid_source_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 64
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SourceView {
+    #[serde(flatten)]
+    config: SourceConfig,
+    run: Option<RunState>,
+}
+
+async fn source_views(state: &AppState) -> Vec<SourceView> {
+    let sources = state.sources.read().await.clone();
+    let runs = state.runs.read().await;
+    sources
+        .into_iter()
+        .map(|config| SourceView {
+            run: runs.get(&config.name).cloned(),
+            config,
+        })
+        .collect()
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn sources_list(State(state): State<Arc<AppState>>) -> Json<Vec<SourceView>> {
+    Json(source_views(&state).await)
+}
+
+/// Register a source, or replace the one with the same name.
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn sources_upsert(
+    State(state): State<Arc<AppState>>,
+    Json(config): Json<SourceConfig>,
+) -> Result<Json<Vec<SourceView>>, ApiError> {
+    if !valid_source_name(&config.name) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "source names are 1-64 chars of letters, digits, - and _".to_owned(),
+        ));
+    }
+    if config.command.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "command is empty".to_owned()));
+    }
+    {
+        let mut sources = state.sources.write().await;
+        if let Some(existing) = sources.iter_mut().find(|s| s.name == config.name) {
+            *existing = config;
+        } else {
+            sources.push(config);
+        }
+        save_sources(&state.config_dir, &sources)?;
+    }
+    Ok(Json(source_views(&state).await))
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn sources_delete(
+    State(state): State<Arc<AppState>>,
+    UrlPath(name): UrlPath<String>,
+) -> Result<Json<Vec<SourceView>>, ApiError> {
+    if state
+        .runs
+        .read()
+        .await
+        .get(&name)
+        .is_some_and(|r| r.state == RunPhase::Running)
+    {
+        return Err((StatusCode::CONFLICT, "source is running".to_owned()));
+    }
+    {
+        let mut sources = state.sources.write().await;
+        let before = sources.len();
+        sources.retain(|s| s.name != name);
+        if sources.len() == before {
+            return Err((StatusCode::NOT_FOUND, format!("no such source: {name}")));
+        }
+        save_sources(&state.config_dir, &sources)?;
+    }
+    state.runs.write().await.remove(&name);
+    Ok(Json(source_views(&state).await))
+}
+
+/// Run a source's command (one run per source at a time). The child runs
+/// with the workspace as its working directory, so a relative --out lands
+/// there; stdout is reserved by the contract and discarded until v2.
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn sources_run(
+    State(state): State<Arc<AppState>>,
+    UrlPath(name): UrlPath<String>,
+) -> Result<Json<Vec<SourceView>>, ApiError> {
+    let Some(config) = state
+        .sources
+        .read()
+        .await
+        .iter()
+        .find(|s| s.name == name)
+        .cloned()
+    else {
+        return Err((StatusCode::NOT_FOUND, format!("no such source: {name}")));
+    };
+    {
+        let mut runs = state.runs.write().await;
+        if runs
+            .get(&name)
+            .is_some_and(|r| r.state == RunPhase::Running)
+        {
+            return Err((StatusCode::CONFLICT, "source is already running".to_owned()));
+        }
+        runs.insert(
+            name.clone(),
+            RunState {
+                state: RunPhase::Running,
+                started: Utc::now(),
+                finished: None,
+                exit_code: None,
+                stderr_tail: None,
+            },
+        );
+    }
+
+    std::fs::create_dir_all(&state.data_dir).map_err(|e| internal(&e))?;
+    let spawned = tokio::process::Command::new(&config.command)
+        .args(&config.args)
+        .current_dir(&state.data_dir)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn();
+    let mut child = match spawned {
+        Ok(child) => child,
+        Err(err) => {
+            state.runs.write().await.insert(
+                name.clone(),
+                RunState {
+                    state: RunPhase::Failed,
+                    started: Utc::now(),
+                    finished: Some(Utc::now()),
+                    exit_code: None,
+                    stderr_tail: Some(err.to_string()),
+                },
+            );
+            return Ok(Json(source_views(&state).await));
+        }
+    };
+
+    let watcher_state = Arc::clone(&state);
+    tokio::spawn(async move {
+        const TAIL: usize = 8 * 1024;
+        let mut tail: Vec<u8> = Vec::new();
+        if let Some(mut stderr) = child.stderr.take() {
+            let mut buf = [0u8; 4096];
+            loop {
+                match stderr.read(&mut buf).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        tail.extend_from_slice(&buf[..n]);
+                        if tail.len() > TAIL {
+                            let cut = tail.len() - TAIL;
+                            tail.drain(..cut);
+                        }
+                    }
+                }
+            }
+        }
+        let status = child.wait().await;
+        let (phase, exit_code) = match status {
+            Ok(status) if status.success() => (RunPhase::Succeeded, status.code()),
+            Ok(status) => (RunPhase::Failed, status.code()),
+            Err(_) => (RunPhase::Failed, None),
+        };
+        let stderr_tail = (phase == RunPhase::Failed && !tail.is_empty())
+            .then(|| String::from_utf8_lossy(&tail).into_owned());
+        if let Some(run) = watcher_state.runs.write().await.get_mut(&name) {
+            run.state = phase;
+            run.finished = Some(Utc::now());
+            run.exit_code = exit_code;
+            run.stderr_tail = stderr_tail;
+        }
+    });
+
+    Ok(Json(source_views(&state).await))
 }
 
 /// Serve embedded frontend files; unknown paths fall back to the SPA index.
