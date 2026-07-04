@@ -43,7 +43,7 @@ cargo run --release -- path/to/log.sqlite   # .json / .sqlite / .xml
 | Core model, I/O, validation | [ocel-rs](https://github.com/katsut/ocel-rs) (crates.io: [`ocel`](https://crates.io/crates/ocel)) | MIT |
 | ETL engine (StagingLog → OCEL) | [ocel-etl](https://github.com/katsut/ocel-etl) | MIT |
 | Backlog connector | [ocel-etl-backlog](https://github.com/katsut/ocel-etl-backlog) | MIT |
-| Analysis library (variants / OC-DFG / metrics) | ocel-mine (planned) | MIT |
+| Analysis library (variants / OC-DFG / discovery / fitness) | [ocel-mine](https://github.com/katsut/ocel-mine) (crates.io: [`ocel-mine`](https://crates.io/crates/ocel-mine)) | MIT |
 | **Studio — UI + data source management (this repo)** | ocel-studio | **Elastic License 2.0** |
 
 The studio never links connectors: it orchestrates them as child processes and reads
