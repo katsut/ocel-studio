@@ -78,9 +78,21 @@ struct Loaded {
     type_stats: Vec<ocel_mine::TypeStats>,
 }
 
+/// The keychain service under which all studio secrets live.
+const KEYRING_SERVICE: &str = "ocel-studio";
+
+/// One environment variable for a connector: a plain value, or a reference
+/// into the OS keychain resolved at spawn time. Secrets never appear in the
+/// config file, API responses, or logs.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+enum EnvValue {
+    Plain { value: String },
+    Keyring { keyring: String },
+}
+
 /// A registered data source: a command that (re)writes one OCEL file in the
-/// workspace (connector contract v1). Secrets are out of scope here — env
-/// injection from the OS keychain arrives with contract v2 support.
+/// workspace (connector contract v1/v2).
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SourceConfig {
@@ -88,6 +100,8 @@ struct SourceConfig {
     command: String,
     #[serde(default)]
     args: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    env: std::collections::BTreeMap<String, EnvValue>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize)]
@@ -290,6 +304,8 @@ pub async fn run(
         .route("/api/sources", get(sources_list).post(sources_upsert))
         .route("/api/sources/{name}", delete(sources_delete))
         .route("/api/sources/{name}/run", post(sources_run))
+        .route("/api/secrets", post(secret_set))
+        .route("/api/secrets/{account}", delete(secret_delete))
         .fallback(get(asset))
         .with_state(state);
 
@@ -1145,82 +1161,152 @@ async fn sources_run(
         runs.insert(name.clone(), RunState::running(Utc::now()));
     }
 
+    let fail_run = |message: String| async {
+        let mut failed = RunState::running(Utc::now());
+        failed.state = RunPhase::Failed;
+        failed.finished = Some(Utc::now());
+        failed.stderr_tail = Some(message);
+        state.runs.write().await.insert(name.clone(), failed);
+    };
+
+    let resolved_env = match resolve_env(&config.env) {
+        Ok(resolved) => resolved,
+        Err(message) => {
+            fail_run(message).await;
+            return Ok(Json(source_views(&state).await));
+        }
+    };
+
     std::fs::create_dir_all(&state.data_dir).map_err(|e| internal(&e))?;
     let spawned = tokio::process::Command::new(&config.command)
         .args(&config.args)
+        .envs(resolved_env)
         .current_dir(&state.data_dir)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn();
-    let mut child = match spawned {
+    let child = match spawned {
         Ok(child) => child,
         Err(err) => {
-            let mut failed = RunState::running(Utc::now());
-            failed.state = RunPhase::Failed;
-            failed.finished = Some(Utc::now());
-            failed.stderr_tail = Some(err.to_string());
-            state.runs.write().await.insert(name.clone(), failed);
+            fail_run(err.to_string()).await;
             return Ok(Json(source_views(&state).await));
         }
     };
 
-    let watcher_state = Arc::clone(&state);
-    tokio::spawn(async move {
-        const TAIL: usize = 8 * 1024;
-        let stderr = child.stderr.take();
-        let stdout = child.stdout.take();
+    tokio::spawn(watch_child(Arc::clone(&state), name, child));
 
-        let read_stderr = async {
-            let mut tail: Vec<u8> = Vec::new();
-            if let Some(mut stderr) = stderr {
-                let mut buf = [0u8; 4096];
-                loop {
-                    match stderr.read(&mut buf).await {
-                        Ok(0) | Err(_) => break,
-                        Ok(n) => {
-                            tail.extend_from_slice(&buf[..n]);
-                            if tail.len() > TAIL {
-                                let cut = tail.len() - TAIL;
-                                tail.drain(..cut);
-                            }
+    Ok(Json(source_views(&state).await))
+}
+
+/// Follow a running connector: stream stderr into a bounded tail, apply
+/// contract-v2 stdout events live, and record the final state on exit.
+async fn watch_child(state: Arc<AppState>, name: String, mut child: tokio::process::Child) {
+    const TAIL: usize = 8 * 1024;
+    let stderr = child.stderr.take();
+    let stdout = child.stdout.take();
+
+    let read_stderr = async {
+        let mut tail: Vec<u8> = Vec::new();
+        if let Some(mut stderr) = stderr {
+            let mut buf = [0u8; 4096];
+            loop {
+                match stderr.read(&mut buf).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        tail.extend_from_slice(&buf[..n]);
+                        if tail.len() > TAIL {
+                            let cut = tail.len() - TAIL;
+                            tail.drain(..cut);
                         }
                     }
                 }
             }
-            tail
-        };
-        // contract v2: NDJSON events, applied live so the UI poll sees them
-        let read_stdout = async {
-            if let Some(stdout) = stdout {
-                let mut lines = tokio::io::BufReader::new(stdout).lines();
-                while let Ok(Some(line)) = lines.next_line().await {
-                    let mut runs = watcher_state.runs.write().await;
-                    if let Some(run) = runs.get_mut(&name) {
-                        apply_v2_line(run, &line);
-                    }
+        }
+        tail
+    };
+    // contract v2: NDJSON events, applied live so the UI poll sees them
+    let read_stdout = async {
+        if let Some(stdout) = stdout {
+            let mut lines = tokio::io::BufReader::new(stdout).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let mut runs = state.runs.write().await;
+                if let Some(run) = runs.get_mut(&name) {
+                    apply_v2_line(run, &line);
                 }
             }
-        };
-        let (tail, ()) = tokio::join!(read_stderr, read_stdout);
-
-        let status = child.wait().await;
-        let (phase, exit_code) = match status {
-            Ok(status) if status.success() => (RunPhase::Succeeded, status.code()),
-            Ok(status) => (RunPhase::Failed, status.code()),
-            Err(_) => (RunPhase::Failed, None),
-        };
-        let stderr_tail = (phase == RunPhase::Failed && !tail.is_empty())
-            .then(|| String::from_utf8_lossy(&tail).into_owned());
-        if let Some(run) = watcher_state.runs.write().await.get_mut(&name) {
-            run.state = phase;
-            run.finished = Some(Utc::now());
-            run.exit_code = exit_code;
-            run.stderr_tail = stderr_tail;
         }
-    });
+    };
+    let (tail, ()) = tokio::join!(read_stderr, read_stdout);
 
-    Ok(Json(source_views(&state).await))
+    let status = child.wait().await;
+    let (phase, exit_code) = match status {
+        Ok(status) if status.success() => (RunPhase::Succeeded, status.code()),
+        Ok(status) => (RunPhase::Failed, status.code()),
+        Err(_) => (RunPhase::Failed, None),
+    };
+    let stderr_tail = (phase == RunPhase::Failed && !tail.is_empty())
+        .then(|| String::from_utf8_lossy(&tail).into_owned());
+    if let Some(run) = state.runs.write().await.get_mut(&name) {
+        run.state = phase;
+        run.finished = Some(Utc::now());
+        run.exit_code = exit_code;
+        run.stderr_tail = stderr_tail;
+    }
+}
+
+/// Resolve a source's environment before spawning: plain values pass
+/// through, keychain refs are fetched at spawn time. The error message
+/// names the missing account, never the secret.
+fn resolve_env(
+    env: &std::collections::BTreeMap<String, EnvValue>,
+) -> Result<Vec<(String, String)>, String> {
+    let mut resolved = Vec::with_capacity(env.len());
+    for (key, value) in env {
+        match value {
+            EnvValue::Plain { value } => resolved.push((key.clone(), value.clone())),
+            EnvValue::Keyring { keyring: account } => {
+                let secret = keyring::Entry::new(KEYRING_SERVICE, account)
+                    .and_then(|entry| entry.get_password())
+                    .map_err(|err| format!("secret '{account}' unavailable: {err}"))?;
+                resolved.push((key.clone(), secret));
+            }
+        }
+    }
+    Ok(resolved)
+}
+
+#[derive(Deserialize)]
+struct SecretBody {
+    account: String,
+    value: String,
+}
+
+/// Store a secret in the OS keychain (service `ocel-studio`). Write-only:
+/// there is no endpoint that reads a secret back.
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn secret_set(Json(body): Json<SecretBody>) -> Result<StatusCode, ApiError> {
+    if !valid_source_name(&body.account) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "secret accounts are 1-64 chars of letters, digits, - and _".to_owned(),
+        ));
+    }
+    if body.value.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "secret value is empty".to_owned()));
+    }
+    keyring::Entry::new(KEYRING_SERVICE, &body.account)
+        .and_then(|entry| entry.set_password(&body.value))
+        .map_err(|e| internal(&e))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn secret_delete(UrlPath(account): UrlPath<String>) -> Result<StatusCode, ApiError> {
+    keyring::Entry::new(KEYRING_SERVICE, &account)
+        .and_then(|entry| entry.delete_credential())
+        .map_err(|e| internal(&e))?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Serve embedded frontend files; unknown paths fall back to the SPA index.

@@ -153,6 +153,11 @@ export interface Messages {
   srcNamePlaceholder: string;
   srcCommandPlaceholder: string;
   srcSummary: (events: string, objects: string) => string;
+  envKeychainBadge: string;
+  backlogPresetTitle: string;
+  backlogPresetHint: string;
+  backlogApiKeyPlaceholder: string;
+  backlogProjectsPlaceholder: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -350,6 +355,12 @@ export const MESSAGES: Record<Lang, Messages> = {
     srcNamePlaceholder: "name (e.g. convert-sample)",
     srcCommandPlaceholder: 'command (e.g. ocel convert order-management.sqlite converted.json)',
     srcSummary: (events, objects) => `${events} events / ${objects} objects`,
+    envKeychainBadge: "keychain",
+    backlogPresetTitle: "Add a Backlog source",
+    backlogPresetHint:
+      "Pulls a Backlog project's history into an OCEL log via the ocel-backlog connector. The API key goes straight into the OS keychain — it is never written to a file, and nothing can read it back through the studio.",
+    backlogApiKeyPlaceholder: "API key (stored in the OS keychain)",
+    backlogProjectsPlaceholder: "project keys (e.g. DEMO,OPS)",
   },
   ja: {
     events: "イベント",
@@ -545,6 +556,12 @@ export const MESSAGES: Record<Lang, Messages> = {
     srcNamePlaceholder: "名前（例: convert-sample）",
     srcCommandPlaceholder: "コマンド（例: ocel convert order-management.sqlite converted.json）",
     srcSummary: (events, objects) => `${events} イベント / ${objects} オブジェクト`,
+    envKeychainBadge: "キーチェーン",
+    backlogPresetTitle: "Backlog ソースを追加",
+    backlogPresetHint:
+      "ocel-backlog コネクタで Backlog プロジェクトの履歴を OCEL ログに取り込みます。API キーは OS のキーチェーンに直接保存され、ファイルには書かれず、スタジオ経由で読み出すこともできません。",
+    backlogApiKeyPlaceholder: "API キー（OS キーチェーンに保存）",
+    backlogProjectsPlaceholder: "プロジェクトキー（例: DEMO,OPS）",
   },
 };
 

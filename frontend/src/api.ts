@@ -438,10 +438,14 @@ export interface RunState {
   summary: RunSummary | null;
 }
 
+/// Plain value, or a reference into the OS keychain resolved at spawn time.
+export type EnvValue = { value: string } | { keyring: string };
+
 export interface SourceView {
   name: string;
   command: string;
   args: string[];
+  env?: Record<string, EnvValue>;
   run: RunState | null;
 }
 
@@ -455,12 +459,29 @@ async function sourcesRequest(url: string, init?: RequestInit): Promise<SourceVi
 
 export const fetchSources = () => sourcesRequest("/api/sources");
 
-export const saveSource = (name: string, command: string, args: string[]) =>
+export const saveSource = (
+  name: string,
+  command: string,
+  args: string[],
+  env?: Record<string, EnvValue>,
+) =>
   sourcesRequest("/api/sources", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name, command, args }),
+    body: JSON.stringify({ name, command, args, env }),
   });
+
+/// Store a secret in the OS keychain (write-only — nothing reads it back).
+export const setSecret = async (account: string, value: string): Promise<void> => {
+  const res = await fetch("/api/secrets", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ account, value }),
+  });
+  if (!res.ok) {
+    throw new Error(`/api/secrets: ${res.status} ${await res.text()}`);
+  }
+};
 
 export const deleteSource = (name: string) =>
   sourcesRequest(`/api/sources/${encodeURIComponent(name)}`, { method: "DELETE" });

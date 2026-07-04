@@ -15,12 +15,12 @@ The discovery loop is complete: one screen per question (overview / map / paths 
 cases / model / data), a global carried context (object type, time range), and
 every claim lands on real cases within two clicks. The log live-reloads when the
 file changes on disk, so an incrementally synced log behaves like a living
-dashboard. The platform phase is underway: the workspace screen lists every log
+dashboard. The platform layer is in place: the workspace screen lists every log
 in the studio folder and switches between them, and registered data sources
 (any command following the [connector contract](docs/connector-contract.md))
-run on click and drop fresh logs into the workspace. Progress protocol (v2) and
-keychain-backed credentials are next. Design decisions are recorded in
-[docs/adr](docs/adr/).
+run on click with live v2 progress, credentials injected from the OS keychain,
+and a Backlog preset that composes an `ocel-backlog pull` source. Design
+decisions are recorded in [docs/adr](docs/adr/).
 
 ## Quickstart
 

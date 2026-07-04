@@ -7,7 +7,9 @@ import {
   openLog,
   runSource,
   saveSource,
+  setSecret,
   splitCommandLine,
+  type EnvValue,
   type LogsResponse,
   type SourceView,
 } from "./api.ts";
@@ -50,6 +52,16 @@ function SourceRow({
           title={joinCommandLine(source.command, source.args)}
         >
           {joinCommandLine(source.command, source.args)}
+          {source.env && Object.keys(source.env).length > 0 ? (
+            <div className="env-line">
+              {Object.entries(source.env).map(([key, value]) => (
+                <span key={key} className="env-chip">
+                  {key}=
+                  {"keyring" in value ? `•••• (${t.envKeychainBadge})` : value.value}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </td>
         <td>
           {run === null ? (
@@ -317,9 +329,97 @@ export default function WorkspacePanel({
               </button>
             </div>
             <p className="muted guide">{t.sourcesExactNote}</p>
+            <BacklogPresetForm onAdd={act} />
           </>
         )}
       </div>
     </>
+  );
+}
+
+/// A preset is sugar over the same source mechanism: it stores the API key
+/// in the OS keychain and composes an `ocel-backlog pull` command + env —
+/// never a separate code path (ADR 0004).
+function BacklogPresetForm({ onAdd }: { onAdd: (request: Promise<SourceView[]>) => void }) {
+  const t = useMessages();
+  const [name, setName] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [projects, setProjects] = useState("");
+  const [out, setOut] = useState("backlog.sqlite");
+  const [command, setCommand] = useState("ocel-backlog");
+
+  const ready =
+    name.trim() !== "" &&
+    baseUrl.trim() !== "" &&
+    apiKey !== "" &&
+    projects.trim() !== "" &&
+    out.trim() !== "" &&
+    command.trim() !== "";
+
+  const add = () => {
+    const sourceName = name.trim();
+    const env: Record<string, EnvValue> = {
+      BACKLOG_BASE_URL: { value: baseUrl.trim() },
+      BACKLOG_API_KEY: { keyring: sourceName },
+    };
+    const args = ["pull", "--project", projects.trim(), "--out", out.trim()];
+    onAdd(
+      setSecret(sourceName, apiKey).then(() =>
+        saveSource(sourceName, command.trim(), args, env),
+      ),
+    );
+    setName("");
+    setBaseUrl("");
+    setApiKey("");
+    setProjects("");
+  };
+
+  return (
+    <details className="preset-form">
+      <summary>{t.backlogPresetTitle}</summary>
+      <p className="muted guide">{t.backlogPresetHint}</p>
+      <div className="preset-grid">
+        <input
+          type="text"
+          placeholder={t.srcNamePlaceholder}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="https://example.backlog.com"
+          value={baseUrl}
+          onChange={(e) => setBaseUrl(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder={t.backlogApiKeyPlaceholder}
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder={t.backlogProjectsPlaceholder}
+          value={projects}
+          onChange={(e) => setProjects(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="backlog.sqlite"
+          value={out}
+          onChange={(e) => setOut(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="ocel-backlog"
+          value={command}
+          onChange={(e) => setCommand(e.target.value)}
+        />
+        <button className="rerun-button" disabled={!ready} onClick={add}>
+          {t.srcAddLabel}
+        </button>
+      </div>
+    </details>
   );
 }

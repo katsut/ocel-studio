@@ -234,6 +234,48 @@ header {
   font-family: ui-monospace, monospace;
 }
 
+.env-line {
+  margin-top: 3px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.env-chip {
+  background: var(--chip);
+  border-radius: var(--radius-s);
+  padding: 1px 7px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.preset-form {
+  margin-top: 12px;
+}
+
+.preset-form summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.preset-grid input {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
 .modified {
   margin-left: auto;
   color: var(--muted);
