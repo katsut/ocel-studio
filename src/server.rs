@@ -34,6 +34,32 @@ const SAMPLE_URL: &str =
     "https://zenodo.org/api/records/18373906/files/order-management.sqlite/content";
 const SAMPLE_FILE: &str = "order-management.sqlite";
 
+const OCEL_EXTENSIONS: [&str; 6] = ["json", "jsonocel", "sqlite", "db", "xml", "xmlocel"];
+
+fn is_ocel_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| OCEL_EXTENSIONS.contains(&e))
+        && path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| !n.starts_with('.'))
+}
+
+/// The most recently modified OCEL file in the data directory, if any.
+pub fn latest_log(dir: &Path) -> Option<PathBuf> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    entries
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| is_ocel_file(p))
+        .max_by_key(|p| {
+            std::fs::metadata(p)
+                .and_then(|m| m.modified())
+                .unwrap_or(SystemTime::UNIX_EPOCH)
+        })
+}
+
 struct Loaded {
     path: PathBuf,
     modified: SystemTime,
@@ -85,6 +111,8 @@ pub async fn run(
         .route("/api/case", get(case_detail))
         .route("/api/status", get(status))
         .route("/api/sample", post(sample))
+        .route("/api/logs", get(logs))
+        .route("/api/logs/open", post(open_log))
         .fallback(get(asset))
         .with_state(state);
 
@@ -720,6 +748,100 @@ async fn sample(State(state): State<Arc<AppState>>) -> Result<Json<Status>, ApiE
     }
     let loaded = load(&target).map_err(|e| internal(&*e))?;
     let modified = loaded.modified;
+    *state.loaded.write().await = Some(loaded);
+    Ok(Json(Status {
+        loaded: true,
+        modified: Some(modified.into()),
+        data_dir: state.data_dir.display().to_string(),
+    }))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LogEntry {
+    name: String,
+    size: u64,
+    modified: DateTime<Utc>,
+    active: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LogsResponse {
+    data_dir: String,
+    /// Workspace logs, newest first.
+    logs: Vec<LogEntry>,
+    /// Path of the active log when it lives outside the workspace.
+    active_outside: Option<String>,
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn logs(State(state): State<Arc<AppState>>) -> Result<Json<LogsResponse>, ApiError> {
+    let active_path = state.loaded.read().await.as_ref().map(|l| l.path.clone());
+    let mut logs: Vec<LogEntry> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&state.data_dir) {
+        for entry in entries.filter_map(Result::ok) {
+            let path = entry.path();
+            if !is_ocel_file(&path) {
+                continue;
+            }
+            let Ok(meta) = entry.metadata() else {
+                continue;
+            };
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            logs.push(LogEntry {
+                name: name.to_owned(),
+                size: meta.len(),
+                modified: meta.modified().unwrap_or(SystemTime::UNIX_EPOCH).into(),
+                active: active_path.as_deref() == Some(path.as_path()),
+            });
+        }
+    }
+    logs.sort_by(|a, b| {
+        b.modified
+            .cmp(&a.modified)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    let active_outside = active_path
+        .filter(|p| !logs.iter().any(|l| l.active) && p.exists())
+        .map(|p| p.display().to_string());
+    Ok(Json(LogsResponse {
+        data_dir: state.data_dir.display().to_string(),
+        logs,
+        active_outside,
+    }))
+}
+
+#[derive(Deserialize)]
+struct OpenBody {
+    /// Bare file name inside the workspace — never a path.
+    name: String,
+}
+
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn open_log(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<OpenBody>,
+) -> Result<Json<Status>, ApiError> {
+    // names only: reject anything that does not stand alone as a file name
+    let candidate = Path::new(&body.name);
+    if candidate.file_name() != Some(std::ffi::OsStr::new(body.name.as_str())) {
+        return Err((StatusCode::BAD_REQUEST, "not a file name".to_owned()));
+    }
+    let path = state.data_dir.join(&body.name);
+    if !is_ocel_file(&path) || !path.exists() {
+        return Err((StatusCode::NOT_FOUND, format!("no such log: {}", body.name)));
+    }
+    let loaded = load(&path).map_err(|e| internal(&*e))?;
+    let modified = loaded.modified;
+    eprintln!(
+        "opened {}: {} events / {} objects",
+        path.display(),
+        loaded.log.events.len(),
+        loaded.log.objects.len()
+    );
     *state.loaded.write().await = Some(loaded);
     Ok(Json(Status {
         loaded: true,

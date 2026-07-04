@@ -126,6 +126,17 @@ export interface Messages {
   emptyDownloading: string;
   emptySampleNote: (dir: string) => string;
   emptyCliHint: string;
+  navWorkspace: string;
+  workspacePanel: string;
+  workspaceHint: string;
+  fileCol: string;
+  sizeCol: string;
+  updatedCol: string;
+  activeBadge: string;
+  openLabel: string;
+  workspaceDirNote: (dir: string) => string;
+  workspaceOutsideNote: (path: string) => string;
+  workspaceEmpty: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -293,6 +304,18 @@ export const MESSAGES: Record<Lang, Messages> = {
     emptySampleNote: (dir) =>
       `Downloads order-management.sqlite (~35 MB) from Zenodo into ${dir} — only when you click, never on its own.`,
     emptyCliHint: "Next time the studio reopens the most recent log in that folder automatically.",
+    navWorkspace: "Workspace",
+    workspacePanel: "Workspace",
+    workspaceHint:
+      "Every OCEL file in the studio folder is a log you can open — drop a file in and it appears here. Data sources that refresh these files automatically arrive in the next phase.",
+    fileCol: "File",
+    sizeCol: "Size",
+    updatedCol: "Updated",
+    activeBadge: "viewing",
+    openLabel: "Open",
+    workspaceDirNote: (dir) => `Folder: ${dir}`,
+    workspaceOutsideNote: (path) => `Currently viewing a file outside the workspace: ${path}`,
+    workspaceEmpty: "No logs here yet.",
   },
   ja: {
     events: "イベント",
@@ -458,6 +481,18 @@ export const MESSAGES: Record<Lang, Messages> = {
     emptySampleNote: (dir) =>
       `Zenodo から order-management.sqlite（約35MB）を ${dir} に保存します。押した時だけ通信します。`,
     emptyCliHint: "次回からは、このフォルダの最新のログを自動で開きます。",
+    navWorkspace: "ワークスペース",
+    workspacePanel: "ワークスペース",
+    workspaceHint:
+      "スタジオのフォルダにある OCEL ファイルの一覧です。ファイルを置けばここに現れ、開くとすべての画面が切り替わります。ここを自動で更新するデータソース登録は次のフェーズで入ります。",
+    fileCol: "ファイル",
+    sizeCol: "サイズ",
+    updatedCol: "更新",
+    activeBadge: "表示中",
+    openLabel: "開く",
+    workspaceDirNote: (dir) => `フォルダ: ${dir}`,
+    workspaceOutsideNote: (path) => `いまはワークスペース外のファイルを表示中: ${path}`,
+    workspaceEmpty: "まだログがありません。",
   },
 };
 

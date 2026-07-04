@@ -381,3 +381,37 @@ export const fetchSample = async (): Promise<Status> => {
   }
   return res.json() as Promise<Status>;
 };
+
+export interface LogEntry {
+  name: string;
+  size: number;
+  modified: string;
+  active: boolean;
+}
+
+export interface LogsResponse {
+  dataDir: string;
+  logs: LogEntry[];
+  activeOutside: string | null;
+}
+
+// The listing reflects the directory right now — never cached.
+export const fetchLogs = async (): Promise<LogsResponse> => {
+  const res = await fetch("/api/logs");
+  if (!res.ok) {
+    throw new Error(`/api/logs: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<LogsResponse>;
+};
+
+export const openLog = async (name: string): Promise<Status> => {
+  const res = await fetch("/api/logs/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    throw new Error(`/api/logs/open: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<Status>;
+};
