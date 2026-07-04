@@ -415,3 +415,81 @@ export const openLog = async (name: string): Promise<Status> => {
   }
   return res.json() as Promise<Status>;
 };
+
+export interface RunState {
+  state: "running" | "succeeded" | "failed";
+  started: string;
+  finished: string | null;
+  exitCode: number | null;
+  stderrTail: string | null;
+}
+
+export interface SourceView {
+  name: string;
+  command: string;
+  args: string[];
+  run: RunState | null;
+}
+
+async function sourcesRequest(url: string, init?: RequestInit): Promise<SourceView[]> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    throw new Error(`${url}: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<SourceView[]>;
+}
+
+export const fetchSources = () => sourcesRequest("/api/sources");
+
+export const saveSource = (name: string, command: string, args: string[]) =>
+  sourcesRequest("/api/sources", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, command, args }),
+  });
+
+export const deleteSource = (name: string) =>
+  sourcesRequest(`/api/sources/${encodeURIComponent(name)}`, { method: "DELETE" });
+
+export const runSource = (name: string) =>
+  sourcesRequest(`/api/sources/${encodeURIComponent(name)}/run`, { method: "POST" });
+
+/// Split a command line into program + args, honoring single/double quotes.
+export function splitCommandLine(line: string): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let quote: '"' | "'" | null = null;
+  let started = false;
+  for (const ch of line) {
+    if (quote) {
+      if (ch === quote) {
+        quote = null;
+      } else {
+        current += ch;
+      }
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      started = true;
+    } else if (ch === " " || ch === "\t") {
+      if (started) {
+        parts.push(current);
+        current = "";
+        started = false;
+      }
+    } else {
+      current += ch;
+      started = true;
+    }
+  }
+  if (started) {
+    parts.push(current);
+  }
+  return parts;
+}
+
+/// Join program + args back into a display string, quoting where needed.
+export function joinCommandLine(command: string, args: string[]): string {
+  return [command, ...args]
+    .map((part) => (part.includes(" ") || part === "" ? `"${part}"` : part))
+    .join(" ");
+}

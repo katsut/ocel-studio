@@ -137,6 +137,21 @@ export interface Messages {
   workspaceDirNote: (dir: string) => string;
   workspaceOutsideNote: (path: string) => string;
   workspaceEmpty: string;
+  sourcesPanel: string;
+  sourcesHint: string;
+  sourcesEmpty: string;
+  sourcesExactNote: string;
+  srcNameCol: string;
+  srcCommandCol: string;
+  srcStatusCol: string;
+  srcRunLabel: string;
+  srcDeleteLabel: string;
+  srcAddLabel: string;
+  srcRunning: string;
+  srcSucceeded: (time: string) => string;
+  srcFailed: (exitCode: number | null) => string;
+  srcNamePlaceholder: string;
+  srcCommandPlaceholder: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -316,6 +331,23 @@ export const MESSAGES: Record<Lang, Messages> = {
     workspaceDirNote: (dir) => `Folder: ${dir}`,
     workspaceOutsideNote: (path) => `Currently viewing a file outside the workspace: ${path}`,
     workspaceEmpty: "No logs here yet.",
+    sourcesPanel: "Data sources",
+    sourcesHint:
+      "A source is a command that writes or refreshes one OCEL file in the workspace (connector contract v1). It runs only when you click Run — never on its own.",
+    sourcesEmpty: "No sources registered yet.",
+    sourcesExactNote:
+      "The studio runs exactly the command shown, inside the workspace folder — so a relative --out lands there. Credentials via the OS keychain arrive in the next phase.",
+    srcNameCol: "Name",
+    srcCommandCol: "Command",
+    srcStatusCol: "Last run",
+    srcRunLabel: "Run",
+    srcDeleteLabel: "Delete",
+    srcAddLabel: "Add",
+    srcRunning: "running…",
+    srcSucceeded: (time) => `succeeded ${time}`,
+    srcFailed: (exitCode) => `failed${exitCode === null ? "" : ` (exit ${exitCode})`}`,
+    srcNamePlaceholder: "name (e.g. convert-sample)",
+    srcCommandPlaceholder: 'command (e.g. ocel convert order-management.sqlite converted.json)',
   },
   ja: {
     events: "イベント",
@@ -493,6 +525,23 @@ export const MESSAGES: Record<Lang, Messages> = {
     workspaceDirNote: (dir) => `フォルダ: ${dir}`,
     workspaceOutsideNote: (path) => `いまはワークスペース外のファイルを表示中: ${path}`,
     workspaceEmpty: "まだログがありません。",
+    sourcesPanel: "データソース",
+    sourcesHint:
+      "ソースは、ワークスペースの OCEL ファイルを作成・更新するコマンドです（コネクタ規約 v1）。実行ボタンを押した時だけ動きます。勝手には動きません。",
+    sourcesEmpty: "まだソースが登録されていません。",
+    sourcesExactNote:
+      "表示されているコマンドを、ワークスペースのフォルダ内でそのまま実行します（相対パスの --out はそこに落ちます）。OS キーチェーン経由の認証情報は次のフェーズで入ります。",
+    srcNameCol: "名前",
+    srcCommandCol: "コマンド",
+    srcStatusCol: "最終実行",
+    srcRunLabel: "実行",
+    srcDeleteLabel: "削除",
+    srcAddLabel: "追加",
+    srcRunning: "実行中…",
+    srcSucceeded: (time) => `成功 ${time}`,
+    srcFailed: (exitCode) => `失敗${exitCode === null ? "" : `（exit ${exitCode}）`}`,
+    srcNamePlaceholder: "名前（例: convert-sample）",
+    srcCommandPlaceholder: "コマンド（例: ocel convert order-management.sqlite converted.json）",
   },
 };
 

@@ -25,12 +25,18 @@ fn data_dir() -> PathBuf {
         .join("ocel-studio")
 }
 
+fn config_dir() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("ocel-studio")
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     let cli = Cli::parse();
     let data_dir = data_dir();
     let initial = cli.log.or_else(|| server::latest_log(&data_dir));
-    match server::run(initial, data_dir, cli.port).await {
+    match server::run(initial, data_dir, config_dir(), cli.port).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             eprintln!("error: {err}");
