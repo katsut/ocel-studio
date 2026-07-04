@@ -140,6 +140,23 @@ header {
   padding: 3px 10px;
 }
 
+.file-button {
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.file-button:hover {
+  color: var(--accent);
+}
+
+.active-badge {
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
 .modified {
   margin-left: auto;
   color: var(--muted);

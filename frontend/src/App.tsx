@@ -31,11 +31,19 @@ import CasesPanel from "./Cases.tsx";
 import FlowPanel from "./Flow.tsx";
 import ModelPanel from "./Model.tsx";
 import VariantsPanel from "./Variants.tsx";
+import WorkspacePanel from "./Workspace.tsx";
 
 const PAGE_SIZE = 50;
 const POLL_MS = 2000;
 
-export type Screen = "overview" | "map" | "paths" | "cases" | "model" | "data";
+export type Screen =
+  | "overview"
+  | "map"
+  | "paths"
+  | "cases"
+  | "model"
+  | "data"
+  | "workspace";
 
 function EmptyState({ dataDir }: { dataDir: string }) {
   const t = useMessages();
@@ -241,6 +249,7 @@ function Dashboard({
     { key: "cases", label: t.navCases },
     { key: "model", label: t.navModel },
     { key: "data", label: t.navData },
+    { key: "workspace", label: t.navWorkspace },
   ];
 
   return (
@@ -250,9 +259,13 @@ function Dashboard({
         <span className="brand">ocel-studio</span>
         {summary ? (
           <>
-            <span className="file" title={summary.path}>
+            <button
+              className="file file-button"
+              title={`${summary.path} — ${t.navWorkspace}`}
+              onClick={() => setScreen("workspace")}
+            >
               {fileName}
-            </span>
+            </button>
             <select
               className="header-select"
               title={t.objectTypeLabel}
@@ -416,6 +429,21 @@ function Dashboard({
               />
             ) : null}
             {screen === "data" ? <EventsPanel page={page} lang={lang} onPage={setOffset} /> : null}
+            {screen === "workspace" ? (
+              <WorkspacePanel
+                lang={lang}
+                modified={summary.modified}
+                onOpened={() => {
+                  clearApiCache();
+                  setChosenType("");
+                  setCaseFilter(null);
+                  setRange(null);
+                  setOffset(0);
+                  setScreen("overview");
+                  void refresh(0, null);
+                }}
+              />
+            ) : null}
           </main>
         </div>
       ) : status && !status.loaded ? (
