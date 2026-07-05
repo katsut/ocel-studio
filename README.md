@@ -19,8 +19,8 @@ dashboard. The platform layer is in place: the workspace screen lists every log
 in the studio folder and switches between them, and registered data sources
 (any command following the [connector contract](docs/connector-contract.md))
 run on click with live v2 progress, credentials injected from the OS keychain,
-and a Backlog preset that composes an `ocel-backlog pull` source. Design
-decisions are recorded in [docs/adr](docs/adr/).
+and a Backlog preset that composes an `ocel-backlog pull` source. See
+[ARCHITECTURE.md](ARCHITECTURE.md) for how it is built.
 
 ## Quickstart
 

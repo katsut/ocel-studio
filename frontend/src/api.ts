@@ -169,8 +169,7 @@ export interface OcDfg {
 }
 
 /// Stable categorical slot per object type: descending object count at load,
-/// fixed for the session — color follows the entity, never its rank
-/// (docs/design/design-system.md).
+/// fixed for the session — color follows the entity, never its rank.
 export function typeSlots(objectTypes: TypeCount[]): Map<string, number> {
   const ranked = [...objectTypes].sort(
     (a, b) => b.count - a.count || a.name.localeCompare(b.name),
