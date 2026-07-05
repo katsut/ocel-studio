@@ -9,6 +9,7 @@ import {
   type ModelParams,
   type ModelResult,
   type PetriNet,
+  type PrecisionReport,
   type ProcessTree,
   type Range,
   type ReplayReport,
@@ -337,9 +338,11 @@ function SimplicityLine({ tree }: { tree: ProcessTree }) {
 
 function FitnessStrip({
   replay,
+  precision,
   onShowCases,
 }: {
   replay: ReplayReport;
+  precision: PrecisionReport;
   onShowCases: (activities: string[]) => void;
 }) {
   const t = useMessages();
@@ -355,6 +358,9 @@ function FitnessStrip({
               replay.traces.toLocaleString(),
               pct,
             )}
+      </p>
+      <p className="fitness-line" title={t.precisionHint}>
+        {t.precisionLine((precision.precision * 100).toFixed(1))}
       </p>
       {replay.misfits.length > 0 ? (
         <details className="misfits">
@@ -522,7 +528,11 @@ export default function ModelPanel({
       {result ? (
         result.algo === "inductive" ? (
           <>
-            <FitnessStrip replay={result.replay} onShowCases={onShowCases} />
+            <FitnessStrip
+              replay={result.replay}
+              precision={result.precision}
+              onShowCases={onShowCases}
+            />
             <SimplicityLine tree={result.tree} />
             <div className="tree-scroll">
               <TreeNode tree={result.tree} />
@@ -552,7 +562,11 @@ export default function ModelPanel({
                 {t.modelWarnings}: {result.net.warnings.join(" · ")}
               </p>
             ) : null}
-            <FitnessStrip replay={result.replay} onShowCases={onShowCases} />
+            <FitnessStrip
+              replay={result.replay}
+              precision={result.precision}
+              onShowCases={onShowCases}
+            />
             <PetriView net={result.net} />
           </div>
         )

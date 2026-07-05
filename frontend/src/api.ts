@@ -254,9 +254,17 @@ export interface ReplayReport {
   misfits: MisfitVariant[];
 }
 
+export interface PrecisionReport {
+  objectType: string;
+  precision: number;
+  allowed: number;
+  escaping: number;
+  truncatedTraces: number;
+}
+
 export type ModelResult =
-  | { algo: "inductive"; tree: ProcessTree; replay: ReplayReport }
-  | { algo: "alpha"; net: PetriNet; replay: ReplayReport }
+  | { algo: "inductive"; tree: ProcessTree; replay: ReplayReport; precision: PrecisionReport }
+  | { algo: "alpha"; net: PetriNet; replay: ReplayReport; precision: PrecisionReport }
   | { algo: "heuristics"; net: HeuristicsNet };
 
 export const fetchSummary = (range: Range | null) =>

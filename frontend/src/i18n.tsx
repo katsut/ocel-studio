@@ -85,6 +85,8 @@ export interface Messages {
   heuristicsEdgeCount: (n: number) => string;
   fitnessLine: (fitting: string, traces: string, pct: string) => string;
   fitnessAllFit: string;
+  precisionLine: (pct: string) => string;
+  precisionHint: string;
   misfitHeader: (n: string) => string;
   misfitHint: string;
   fitnessNote: string;
@@ -277,6 +279,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     fitnessLine: (fitting, traces, pct) =>
       `This model replays ${fitting} of ${traces} cases exactly (${pct}%).`,
     fitnessAllFit: "This model replays every case exactly.",
+    precisionLine: (pct) => `Precision: ${pct}% of what the model allows actually happens.`,
+    precisionHint:
+      "Low precision means the model also allows many moves the log never makes — replaying everything is easy if you allow everything. Tighten the noise filter to trade fitness for precision.",
     misfitHeader: (n) => `Paths the model cannot replay — ${n} cases`,
     misfitHint:
       "These cases moved outside the model. Click a row to see the real cases behind it.",
@@ -477,6 +482,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     fitnessLine: (fitting, traces, pct) =>
       `このモデルは ${traces} ケース中 ${fitting} ケースをそのまま再生できます（${pct}%）。`,
     fitnessAllFit: "このモデルはすべてのケースをそのまま再生できます。",
+    precisionLine: (pct) => `精密さ: モデルが許す動きのうち実際に起きたのは ${pct}% です。`,
+    precisionHint:
+      "精密さが低い＝記録にない動きまで広く許すモデルです。何でも許せば何でも再生できるので、再生できる割合とセットで読んでください。ノイズフィルタを上げると再生率と引き換えに精密さが上がります。",
     misfitHeader: (n) => `再生できない進み方 — ${n} ケース`,
     misfitHint:
       "モデルの外の動きをしたケースです。行をクリックすると実際のケースを確認できます。",
