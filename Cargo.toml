@@ -8,7 +8,7 @@ repository = "https://github.com/katsut/ocel-studio"
 description = "Local-first process mining studio for OCEL 2.0 event logs"
 
 [dependencies]
-ocel = "0.1.3"
+ocel = "0.1.4"
 ocel-mine = "0.1"
 axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "process", "io-util"] }
