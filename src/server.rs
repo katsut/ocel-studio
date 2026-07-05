@@ -839,10 +839,12 @@ enum ModelResult {
     Inductive {
         tree: ocel_mine::ProcessTree,
         replay: ocel_mine::ReplayReport,
+        precision: ocel_mine::PrecisionReport,
     },
     Alpha {
         net: ocel_mine::PetriNet,
         replay: ocel_mine::ReplayReport,
+        precision: ocel_mine::PrecisionReport,
     },
     Heuristics {
         net: ocel_mine::HeuristicsNet,
@@ -866,12 +868,22 @@ async fn model(
                 query.noise.unwrap_or(0.0).clamp(0.0, 1.0),
             );
             let replay = ocel_mine::tree_replay(&log, &query.object_type, &tree);
-            ModelResult::Inductive { tree, replay }
+            let precision = ocel_mine::tree_precision(&log, &query.object_type, &tree);
+            ModelResult::Inductive {
+                tree,
+                replay,
+                precision,
+            }
         }
         "alpha" => {
             let net = ocel_mine::alpha(&log, &query.object_type);
             let replay = ocel_mine::net_replay(&log, &query.object_type, &net);
-            ModelResult::Alpha { net, replay }
+            let precision = ocel_mine::net_precision(&log, &query.object_type, &net);
+            ModelResult::Alpha {
+                net,
+                replay,
+                precision,
+            }
         }
         "heuristics" => {
             let params = ocel_mine::HeuristicsParams {
