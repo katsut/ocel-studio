@@ -501,6 +501,7 @@ type StepKind =
   | "renameEventTypes"
   | "timeWindow"
   | "keepObjectTypes"
+  | "mapObjectIds"
   | "dropObjectsWithoutEvents";
 
 const STEP_KINDS: StepKind[] = [
@@ -510,6 +511,7 @@ const STEP_KINDS: StepKind[] = [
   "renameEventTypes",
   "timeWindow",
   "keepObjectTypes",
+  "mapObjectIds",
   "dropObjectsWithoutEvents",
 ];
 
@@ -534,6 +536,8 @@ function emptyStep(kind: StepKind): RecipeStep {
       return { timeWindow: {} };
     case "keepObjectTypes":
       return { keepObjectTypes: [] };
+    case "mapObjectIds":
+      return { mapObjectIds: { aliases: {} } };
     case "dropObjectsWithoutEvents":
       return "dropObjectsWithoutEvents";
   }
@@ -597,6 +601,18 @@ function StepEditor({
             .map(([from, to]) => `${from}=${to}`)
             .join(", ")}
           onBlur={(e) => onChange({ renameEventTypes: splitRenames(e.target.value) })}
+        />
+      ) : kind === "mapObjectIds" ? (
+        <input
+          type="text"
+          className="step-wide"
+          placeholder={t.stepAliasPlaceholder}
+          defaultValue={Object.entries(
+            (step as { mapObjectIds: { aliases: Record<string, string> } }).mapObjectIds.aliases,
+          )
+            .map(([from, to]) => `${from}=${to}`)
+            .join(", ")}
+          onBlur={(e) => onChange({ mapObjectIds: { aliases: splitRenames(e.target.value) } })}
         />
       ) : kind === "timeWindow" ? (
         (() => {
@@ -671,6 +687,9 @@ function stepSummary(step: RecipeStep): string {
   }
   if (kind === "renameEventTypes") {
     return `${kind} (${Object.keys(value as object).length})`;
+  }
+  if (kind === "mapObjectIds") {
+    return `${kind} (${Object.keys((value as { aliases: object }).aliases).length})`;
   }
   return kind;
 }
