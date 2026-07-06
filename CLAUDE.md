@@ -20,17 +20,23 @@ fails CI even if you only touched Rust.
 ## Map
 
 - `src/main.rs` — CLI args, data/config dir resolution, server start
-- `src/server.rs` — everything else: `Loaded` (log + mtime lazy reload),
-  `AppState`, all `/api/*` handlers (summary/events/variants/dfg/ocdfg/
-  model/cases/leadtimes/logs/sources/runs/secrets/transform), source
-  spawning (`watch_child`, contract v1/v2 NDJSON), run history, keychain env
+- `src/server/mod.rs` — `Loaded` (log + mtime lazy reload), `AppState`,
+  embedded assets, the router (`server::run`)
+- `src/server/workspace.rs` — log listing/open/status + sample download
+- `src/server/sources.rs` — sources CRUD/run, `watch_child` (contract v1/v2
+  NDJSON), run history (`runs.json`), keychain env + secrets
+- `src/server/analysis.rs` — summary/events/variants/dfg/ocdfg/model/cases/
+  leadtimes + time-window (`Cow<Ocel>`) helpers
+- `src/server/recipes.rs` — recipes CRUD + transform preview
 - `frontend/src/App.tsx` — screen router, global type/range selectors,
   status poll, `caseLikeType` default-type pick
 - `frontend/src/api.ts` — every API type + fetcher; URL-keyed cache dropped
   on mtime change
-- `frontend/src/{Insights,Flow,Variants,Cases,Model,Workspace}.tsx` — one
-  screen each (overview cards / map / paths / cases / model tabs / files+
-  sources+recipes+DAG)
+- `frontend/src/{Insights,Flow,Variants,Cases,Model}.tsx` — one screen each
+  (overview cards / map / paths / cases / model tabs)
+- `frontend/src/Workspace.tsx` — thin composer over
+  `frontend/src/workspace/{FileList,PipelineDag,Sources,SourceRow,Recipes,
+  StepEditor}.tsx`
 - `frontend/src/i18n.tsx` — the whole en/ja dictionary (`Messages` type keeps
   both locales complete at compile time)
 - `frontend/src/styles.css` — design tokens at the top (`--accent`, `--muted`,
