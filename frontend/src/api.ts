@@ -453,6 +453,9 @@ export interface SourceView {
   command: string;
   args: string[];
   env?: Record<string, EnvValue>;
+  /// Pipeline edges for the DAG view (descriptive metadata only).
+  input?: string;
+  output?: string;
   run: RunState | null;
 }
 
@@ -471,11 +474,12 @@ export const saveSource = (
   command: string,
   args: string[],
   env?: Record<string, EnvValue>,
+  io?: { input?: string; output?: string },
 ) =>
   sourcesRequest("/api/sources", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name, command, args, env }),
+    body: JSON.stringify({ name, command, args, env, input: io?.input, output: io?.output }),
   });
 
 /// Store a secret in the OS keychain (write-only — nothing reads it back).
@@ -495,6 +499,93 @@ export const deleteSource = (name: string) =>
 
 export const runSource = (name: string) =>
   sourcesRequest(`/api/sources/${encodeURIComponent(name)}/run`, { method: "POST" });
+
+// --- transform recipes -------------------------------------------------------
+
+export interface EventPredicate {
+  eventType?: string;
+  attr?: string;
+  equals?: string;
+  matches?: string;
+  min?: number;
+  max?: number;
+}
+
+export type RecipeStep =
+  | { dropEventTypes: string[] }
+  | { keepEventTypes: string[] }
+  | { dropEventsWhere: EventPredicate }
+  | { renameEventTypes: Record<string, string> }
+  | { timeWindow: { from?: string; to?: string } }
+  | { keepObjectTypes: string[] }
+  | "dropObjectsWithoutEvents";
+
+export interface Recipe {
+  name: string;
+  steps: RecipeStep[];
+}
+
+export interface RecipeView extends Recipe {
+  /// Absolute path of the stored recipe file (what a transform source needs).
+  file: string;
+}
+
+export interface DroppedEvent {
+  id: string;
+  eventType: string;
+  time: string;
+  attributes: [string, string][];
+}
+
+export interface StepPreview {
+  step: string;
+  eventsBefore: number;
+  eventsAfter: number;
+  objectsBefore: number;
+  objectsAfter: number;
+  droppedEvents: DroppedEvent[];
+  droppedTotal: number;
+}
+
+export interface TransformPreview {
+  steps: StepPreview[];
+  events: number;
+  objects: number;
+}
+
+async function recipesRequest(url: string, init?: RequestInit): Promise<RecipeView[]> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    throw new Error(`${url}: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<RecipeView[]>;
+}
+
+export const fetchRecipes = () => recipesRequest("/api/recipes");
+
+export const saveRecipe = (recipe: Recipe) =>
+  recipesRequest("/api/recipes", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(recipe),
+  });
+
+export const deleteRecipe = (name: string) =>
+  recipesRequest(`/api/recipes/${encodeURIComponent(name)}`, { method: "DELETE" });
+
+/// What the recipe would do to the currently loaded log — never cached, and
+/// nothing is written.
+export const previewTransform = async (recipe: Recipe): Promise<TransformPreview> => {
+  const res = await fetch("/api/transform/preview", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(recipe),
+  });
+  if (!res.ok) {
+    throw new Error(`${await res.text()}`);
+  }
+  return res.json() as Promise<TransformPreview>;
+};
 
 /// Split a command line into program + args, honoring single/double quotes.
 export function splitCommandLine(line: string): string[] {

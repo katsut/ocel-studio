@@ -160,6 +160,29 @@ export interface Messages {
   backlogPresetHint: string;
   backlogApiKeyPlaceholder: string;
   backlogProjectsPlaceholder: string;
+  pipelinePanel: string;
+  pipelineHint: string;
+  recipesPanel: string;
+  recipesHint: string;
+  recipesEmpty: string;
+  recipeStepsCol: string;
+  recipeEditLabel: string;
+  recipeSourceLabel: string;
+  recipeNewLabel: string;
+  recipeAddStep: string;
+  recipePreviewLabel: string;
+  recipeSaveLabel: string;
+  recipeRegisterLabel: string;
+  recipePreviewNote: string;
+  recipeStepCol: string;
+  recipeDroppedCol: string;
+  recipeDroppedHeader: (step: string, n: string) => string;
+  stepNames: Record<string, string>;
+  stepTypesPlaceholder: string;
+  stepRenamePlaceholder: string;
+  predEventType: string;
+  predAttr: string;
+  predMatches: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -366,6 +389,40 @@ export const MESSAGES: Record<Lang, Messages> = {
       "Pulls a Backlog project's history into an OCEL log via the ocel-backlog connector. The API key goes straight into the OS keychain — it is never written to a file, and nothing can read it back through the studio.",
     backlogApiKeyPlaceholder: "API key (stored in the OS keychain)",
     backlogProjectsPlaceholder: "project keys (e.g. DEMO,OPS)",
+    pipelinePanel: "Pipeline",
+    pipelineHint:
+      "How data flows through this workspace: sources and recipes produce files, files feed recipes. Click a file to open it.",
+    recipesPanel: "Cleaning recipes",
+    recipesHint:
+      "A recipe is an ordered list of deterministic cleaning steps. Preview shows exactly what it would delete from the currently open log — nothing is written until you register it as a source and run it.",
+    recipesEmpty: "No recipes yet.",
+    recipeStepsCol: "Steps",
+    recipeEditLabel: "Edit",
+    recipeSourceLabel: "Make source",
+    recipeNewLabel: "＋ New recipe",
+    recipeAddStep: "＋ step",
+    recipePreviewLabel: "Preview",
+    recipeSaveLabel: "Save",
+    recipeRegisterLabel: "Register",
+    recipePreviewNote:
+      "Preview runs against the currently open log, in memory. The tables below list what each step removes — machine cleaning stays human-checkable.",
+    recipeStepCol: "Step",
+    recipeDroppedCol: "Removed",
+    recipeDroppedHeader: (step, n) => `${step} removes ${n} events — inspect them`,
+    stepNames: {
+      dropEventTypes: "Drop event types",
+      keepEventTypes: "Keep only event types",
+      dropEventsWhere: "Drop events matching",
+      renameEventTypes: "Rename/merge types",
+      timeWindow: "Time window",
+      keepObjectTypes: "Keep only object types",
+      dropObjectsWithoutEvents: "Drop objects without events",
+    },
+    stepTypesPlaceholder: "type names, comma separated",
+    stepRenamePlaceholder: "old=new, comma separated",
+    predEventType: "event type",
+    predAttr: "attribute",
+    predMatches: "regex the value must match",
   },
   ja: {
     events: "イベント",
@@ -570,6 +627,40 @@ export const MESSAGES: Record<Lang, Messages> = {
       "ocel-backlog コネクタで Backlog プロジェクトの履歴を OCEL ログに取り込みます。API キーは OS のキーチェーンに直接保存され、ファイルには書かれず、スタジオ経由で読み出すこともできません。",
     backlogApiKeyPlaceholder: "API キー（OS キーチェーンに保存）",
     backlogProjectsPlaceholder: "プロジェクトキー（例: DEMO,OPS）",
+    pipelinePanel: "パイプライン",
+    pipelineHint:
+      "このワークスペースのデータの流れ: ソースとレシピがファイルを作り、ファイルがレシピに入ります。ファイルをクリックすると開きます。",
+    recipesPanel: "クリーニングレシピ",
+    recipesHint:
+      "レシピは決定的なクリーニング手順の並びです。プレビューで「いま開いているログから何が消えるか」を確認できます — ソース化して実行するまで何も書き込みません。",
+    recipesEmpty: "レシピはまだありません。",
+    recipeStepsCol: "ステップ",
+    recipeEditLabel: "編集",
+    recipeSourceLabel: "ソース化",
+    recipeNewLabel: "＋ 新しいレシピ",
+    recipeAddStep: "＋ ステップ",
+    recipePreviewLabel: "プレビュー",
+    recipeSaveLabel: "保存",
+    recipeRegisterLabel: "登録",
+    recipePreviewNote:
+      "プレビューは開いているログにメモリ内で適用します。下の表で各ステップが何を消すかを必ず確認できます — 機械的なクリーニングも人間が検査できる形で。",
+    recipeStepCol: "ステップ",
+    recipeDroppedCol: "削除",
+    recipeDroppedHeader: (step, n) => `${step} が ${n} 件のイベントを削除します — 中身を確認`,
+    stepNames: {
+      dropEventTypes: "イベント型を消す",
+      keepEventTypes: "イベント型だけ残す",
+      dropEventsWhere: "条件に合うイベントを消す",
+      renameEventTypes: "型をリネーム/統合",
+      timeWindow: "期間で切り出す",
+      keepObjectTypes: "オブジェクト型だけ残す",
+      dropObjectsWithoutEvents: "イベントのないオブジェクトを消す",
+    },
+    stepTypesPlaceholder: "型名をカンマ区切りで",
+    stepRenamePlaceholder: "旧=新 をカンマ区切りで",
+    predEventType: "イベント型",
+    predAttr: "属性名",
+    predMatches: "値が一致すべき正規表現",
   },
 };
 

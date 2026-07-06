@@ -1156,3 +1156,51 @@ th.num {
   align-items: flex-start;
   gap: 6px;
 }
+
+/* pipeline DAG */
+.dag-svg .dag-file-rect {
+  fill: var(--chip);
+  stroke: var(--border);
+}
+.dag-svg .dag-source-rect {
+  fill: transparent;
+  stroke: var(--border);
+}
+.dag-svg .dag-label {
+  fill: var(--text);
+  font-size: 12px;
+  font-family: ui-monospace, "SF Mono", monospace;
+}
+.dag-node.dag-file {
+  cursor: pointer;
+}
+.dag-node.dag-file:hover .dag-file-rect {
+  stroke: var(--accent);
+}
+
+/* recipe editor */
+.recipe-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.step-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.step-row .step-wide {
+  flex: 1;
+  min-width: 220px;
+}
+.recipe-preview {
+  margin-top: 12px;
+}
+.dropped-attrs {
+  max-width: 480px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
