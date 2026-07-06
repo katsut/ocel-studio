@@ -57,7 +57,11 @@ fn logs_by_recency(dir: &Path) -> Vec<PathBuf> {
     let mut paths: Vec<PathBuf> = entries
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .filter(|p| is_ocel_file(p) && p.file_name() != Some(std::ffi::OsStr::new("sources.json")))
+        .filter(|p| {
+            is_ocel_file(p)
+                && p.file_name() != Some(std::ffi::OsStr::new("sources.json"))
+                && p.file_name() != Some(std::ffi::OsStr::new("runs.json"))
+        })
         .collect();
     paths.sort_by_key(|p| {
         std::cmp::Reverse(
@@ -111,7 +115,7 @@ struct SourceConfig {
     output: Option<String>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 enum RunPhase {
     Running,
@@ -129,12 +133,32 @@ struct RunProgress {
 }
 
 /// A contract-v2 `done` summary.
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RunSummary {
     events: u64,
     objects: u64,
 }
+
+/// One completed run, as kept in `<config_dir>/runs.json` across restarts.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RunRecord {
+    source: String,
+    /// `Succeeded` or `Failed` — running runs are in-memory only.
+    state: RunPhase,
+    started: DateTime<Utc>,
+    finished: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    exit_code: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    stderr_tail: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    summary: Option<RunSummary>,
+}
+
+/// Completed runs kept per source; older ones fall off.
+const MAX_HISTORY_PER_SOURCE: usize = 50;
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -225,12 +249,18 @@ struct AppState {
     loaded: RwLock<Option<Loaded>>,
     sources: RwLock<Vec<SourceConfig>>,
     runs: RwLock<HashMap<String, RunState>>,
+    /// Completed runs, newest first, persisted to `runs.json`.
+    history: RwLock<Vec<RunRecord>>,
 }
 
 type ApiError = (StatusCode, String);
 
 fn sources_file(config_dir: &Path) -> PathBuf {
     config_dir.join("sources.json")
+}
+
+fn runs_file(config_dir: &Path) -> PathBuf {
+    config_dir.join("runs.json")
 }
 
 fn load_sources(config_dir: &Path) -> Vec<SourceConfig> {
@@ -250,6 +280,47 @@ fn save_sources(config_dir: &Path, sources: &[SourceConfig]) -> Result<(), ApiEr
     std::fs::create_dir_all(config_dir).map_err(|e| internal(&e))?;
     let raw = serde_json::to_string_pretty(sources).map_err(|e| internal(&e))?;
     std::fs::write(sources_file(config_dir), raw).map_err(|e| internal(&e))
+}
+
+fn load_history(config_dir: &Path) -> Vec<RunRecord> {
+    let Ok(raw) = std::fs::read_to_string(runs_file(config_dir)) else {
+        return Vec::new();
+    };
+    match serde_json::from_str(&raw) {
+        Ok(history) => history,
+        Err(err) => {
+            eprintln!("ignoring unreadable runs.json: {err}");
+            Vec::new()
+        }
+    }
+}
+
+fn save_history(config_dir: &Path, history: &[RunRecord]) {
+    let write = std::fs::create_dir_all(config_dir)
+        .map_err(|e| e.to_string())
+        .and_then(|()| serde_json::to_string_pretty(history).map_err(|e| e.to_string()))
+        .and_then(|raw| std::fs::write(runs_file(config_dir), raw).map_err(|e| e.to_string()));
+    if let Err(err) = write {
+        // history is best-effort bookkeeping; never fail the run over it
+        eprintln!("cannot write runs.json: {err}");
+    }
+}
+
+/// Prepend a completed run and persist, dropping this source's oldest
+/// entries past the cap.
+async fn record_run(state: &AppState, record: RunRecord) {
+    let mut history = state.history.write().await;
+    history.insert(0, record);
+    let mut kept = 0usize;
+    let source = history[0].source.clone();
+    history.retain(|r| {
+        if r.source != source {
+            return true;
+        }
+        kept += 1;
+        kept <= MAX_HISTORY_PER_SOURCE
+    });
+    save_history(&state.config_dir, &history);
 }
 
 pub async fn run(
@@ -286,12 +357,31 @@ pub async fn run(
         None => eprintln!("no log loaded — the studio offers the official sample on first visit"),
     }
     let sources = load_sources(&config_dir);
+    let history = load_history(&config_dir);
+    // seed the live view from history so "last run" survives a restart
+    let mut runs: HashMap<String, RunState> = HashMap::new();
+    for record in history.iter().rev() {
+        runs.insert(
+            record.source.clone(),
+            RunState {
+                state: record.state,
+                started: record.started,
+                finished: Some(record.finished),
+                exit_code: record.exit_code,
+                stderr_tail: record.stderr_tail.clone(),
+                progress: None,
+                logs: Vec::new(),
+                summary: record.summary,
+            },
+        );
+    }
     let state = Arc::new(AppState {
         data_dir,
         config_dir,
         loaded: RwLock::new(loaded),
         sources: RwLock::new(sources),
-        runs: RwLock::new(HashMap::new()),
+        runs: RwLock::new(runs),
+        history: RwLock::new(history),
     });
 
     let app = Router::new()
@@ -311,6 +401,7 @@ pub async fn run(
         .route("/api/sources", get(sources_list).post(sources_upsert))
         .route("/api/sources/{name}", delete(sources_delete))
         .route("/api/sources/{name}/run", post(sources_run))
+        .route("/api/runs", get(runs_list))
         .route("/api/secrets", post(secret_set))
         .route("/api/secrets/{account}", delete(secret_delete))
         .route("/api/recipes", get(recipes_list).post(recipes_upsert))
@@ -1016,9 +1107,12 @@ async fn logs(State(state): State<Arc<AppState>>) -> Result<Json<LogsResponse>, 
     if let Ok(entries) = std::fs::read_dir(&state.data_dir) {
         for entry in entries.filter_map(Result::ok) {
             let path = entry.path();
-            // on macOS config_dir == data_dir, so the sources file would
-            // otherwise show up as a .json log
-            if !is_ocel_file(&path) || path == sources_file(&state.config_dir) {
+            // on macOS config_dir == data_dir, so the sources and run
+            // history files would otherwise show up as .json logs
+            if !is_ocel_file(&path)
+                || path == sources_file(&state.config_dir)
+                || path == runs_file(&state.config_dir)
+            {
                 continue;
             }
             let Ok(meta) = entry.metadata() else {
@@ -1284,7 +1378,34 @@ async fn sources_delete(
         save_sources(&state.config_dir, &sources)?;
     }
     state.runs.write().await.remove(&name);
+    {
+        let mut history = state.history.write().await;
+        history.retain(|r| r.source != name);
+        save_history(&state.config_dir, &history);
+    }
     Ok(Json(source_views(&state).await))
+}
+
+#[derive(Deserialize)]
+struct RunsQuery {
+    source: Option<String>,
+    limit: Option<usize>,
+}
+
+/// Completed runs, newest first, surviving restarts.
+#[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
+async fn runs_list(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<RunsQuery>,
+) -> Json<Vec<RunRecord>> {
+    let history = state.history.read().await;
+    let records: Vec<RunRecord> = history
+        .iter()
+        .filter(|r| query.source.as_ref().is_none_or(|s| &r.source == s))
+        .take(query.limit.unwrap_or(20))
+        .cloned()
+        .collect();
+    Json(records)
 }
 
 /// Run a source's command (one run per source at a time). The child runs
@@ -1317,11 +1438,25 @@ async fn sources_run(
     }
 
     let fail_run = |message: String| async {
-        let mut failed = RunState::running(Utc::now());
+        let now = Utc::now();
+        let mut failed = RunState::running(now);
         failed.state = RunPhase::Failed;
-        failed.finished = Some(Utc::now());
-        failed.stderr_tail = Some(message);
+        failed.finished = Some(now);
+        failed.stderr_tail = Some(message.clone());
         state.runs.write().await.insert(name.clone(), failed);
+        record_run(
+            &state,
+            RunRecord {
+                source: name.clone(),
+                state: RunPhase::Failed,
+                started: now,
+                finished: now,
+                exit_code: None,
+                stderr_tail: Some(message),
+                summary: None,
+            },
+        )
+        .await;
     };
 
     let resolved_env = match resolve_env(&config.env) {
@@ -1402,12 +1537,27 @@ async fn watch_child(state: Arc<AppState>, name: String, mut child: tokio::proce
     };
     let stderr_tail = (phase == RunPhase::Failed && !tail.is_empty())
         .then(|| String::from_utf8_lossy(&tail).into_owned());
-    if let Some(run) = state.runs.write().await.get_mut(&name) {
+    let finished = Utc::now();
+    let record = {
+        let mut runs = state.runs.write().await;
+        let Some(run) = runs.get_mut(&name) else {
+            return;
+        };
         run.state = phase;
-        run.finished = Some(Utc::now());
+        run.finished = Some(finished);
         run.exit_code = exit_code;
         run.stderr_tail = stderr_tail;
-    }
+        RunRecord {
+            source: name.clone(),
+            state: phase,
+            started: run.started,
+            finished,
+            exit_code,
+            stderr_tail: run.stderr_tail.clone(),
+            summary: run.summary,
+        }
+    };
+    record_run(&state, record).await;
 }
 
 /// Resolve a source's environment before spawning: plain values pass

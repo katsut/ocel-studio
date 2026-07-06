@@ -508,6 +508,25 @@ export const deleteSource = (name: string) =>
 export const runSource = (name: string) =>
   sourcesRequest(`/api/sources/${encodeURIComponent(name)}/run`, { method: "POST" });
 
+/// One completed run, persisted across studio restarts.
+export interface RunRecord {
+  source: string;
+  state: "succeeded" | "failed";
+  started: string;
+  finished: string;
+  exitCode?: number | null;
+  stderrTail?: string | null;
+  summary?: RunSummary | null;
+}
+
+export const fetchRuns = async (source: string, limit = 10): Promise<RunRecord[]> => {
+  const res = await fetch(`/api/runs?source=${encodeURIComponent(source)}&limit=${limit}`);
+  if (!res.ok) {
+    throw new Error(`/api/runs: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<RunRecord[]>;
+};
+
 // --- transform recipes -------------------------------------------------------
 
 export interface EventPredicate {
