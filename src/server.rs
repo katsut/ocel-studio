@@ -851,6 +851,11 @@ enum ModelResult {
         replay: ocel_mine::ReplayReport,
         precision: ocel_mine::PrecisionReport,
     },
+    Powl {
+        model: ocel_mine::Powl,
+        replay: ocel_mine::ReplayReport,
+        precision: ocel_mine::PrecisionReport,
+    },
     Alpha {
         net: ocel_mine::PetriNet,
         replay: ocel_mine::ReplayReport,
@@ -881,6 +886,20 @@ async fn model(
             let precision = ocel_mine::tree_precision(&log, &query.object_type, &tree);
             ModelResult::Inductive {
                 tree,
+                replay,
+                precision,
+            }
+        }
+        "powl" => {
+            let model = ocel_mine::powl(
+                &log,
+                &query.object_type,
+                query.noise.unwrap_or(0.0).clamp(0.0, 1.0),
+            );
+            let replay = ocel_mine::powl_replay(&log, &query.object_type, &model);
+            let precision = ocel_mine::powl_precision(&log, &query.object_type, &model);
+            ModelResult::Powl {
+                model,
                 replay,
                 precision,
             }

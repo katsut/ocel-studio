@@ -9,6 +9,7 @@ import {
   type ModelParams,
   type ModelResult,
   type PetriNet,
+  type PowlModel,
   type PrecisionReport,
   type ProcessTree,
   type Range,
@@ -55,6 +56,116 @@ function TreeNode({ tree }: { tree: ProcessTree }) {
           <TreeNode key={i} tree={child} />
         ))}
       </span>
+    </span>
+  );
+}
+
+/// Topological order of partial-order children (stable for ties).
+function topoOrder(count: number, order: [number, number][]): number[] {
+  const indegree = new Array<number>(count).fill(0);
+  for (const [, j] of order) {
+    indegree[j] += 1;
+  }
+  const result: number[] = [];
+  const ready: number[] = [];
+  for (let i = 0; i < count; i += 1) {
+    if (indegree[i] === 0) {
+      ready.push(i);
+    }
+  }
+  while (ready.length > 0) {
+    const next = ready.shift();
+    if (next === undefined) {
+      break;
+    }
+    result.push(next);
+    for (const [i, j] of order) {
+      if (i === next) {
+        indegree[j] -= 1;
+        if (indegree[j] === 0) {
+          ready.push(j);
+        }
+      }
+    }
+  }
+  return result.length === count ? result : Array.from({ length: count }, (_, i) => i);
+}
+
+/// Are all child pairs comparable (a total order)? Then no badges needed.
+function isTotalOrder(count: number, order: [number, number][]): boolean {
+  const before: boolean[][] = Array.from({ length: count }, () =>
+    new Array<boolean>(count).fill(false),
+  );
+  for (const [i, j] of order) {
+    before[i][j] = true;
+  }
+  for (let k = 0; k < count; k += 1) {
+    for (let i = 0; i < count; i += 1) {
+      if (before[i][k]) {
+        for (let j = 0; j < count; j += 1) {
+          if (before[k][j]) {
+            before[i][j] = true;
+          }
+        }
+      }
+    }
+  }
+  for (let i = 0; i < count; i += 1) {
+    for (let j = i + 1; j < count; j += 1) {
+      if (!before[i][j] && !before[j][i]) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function PowlNode({ model }: { model: PowlModel }) {
+  const t = useMessages();
+  if (model.type === "activity") {
+    return <span className="tree-activity">{model.label}</span>;
+  }
+  if (model.type === "tau") {
+    return (
+      <span className="tree-tau" title={t.opTau}>
+        τ
+      </span>
+    );
+  }
+  if (model.type === "exclusive" || model.type === "loop") {
+    return (
+      <span className={`tree-group tree-${model.type}`}>
+        <span className="tree-op" title={model.type === "exclusive" ? t.opExclusive : t.opLoop}>
+          {OPERATOR[model.type]}
+        </span>
+        <span className="tree-col">
+          {model.children.map((child, i) => (
+            <PowlNode key={i} model={child} />
+          ))}
+        </span>
+      </span>
+    );
+  }
+  const topo = topoOrder(model.children.length, model.order);
+  const total = isTotalOrder(model.children.length, model.order);
+  return (
+    <span className="tree-group tree-sequence">
+      <span className="tree-op" title={t.opPartialOrder}>
+        ≺
+      </span>
+      <span className="tree-row">
+        {topo.map((index) => (
+          <span key={index} className="powl-child">
+            {total ? null : <span className="powl-badge">{index + 1}</span>}
+            <PowlNode model={model.children[index]} />
+          </span>
+        ))}
+      </span>
+      {total || model.order.length === 0 ? null : (
+        <span className="powl-order">
+          {model.order.map(([i, j]) => `${i + 1}≺${j + 1}`).join("・")}
+        </span>
+      )}
     </span>
   );
 }
@@ -430,7 +541,7 @@ export default function ModelPanel({
   };
 
   const dirty =
-    staged.algo === "inductive"
+    staged.algo === "inductive" || staged.algo === "powl"
       ? staged.noise !== applied.noise
       : staged.algo === "heuristics"
         ? staged.dependency !== applied.dependency || staged.minEdge !== applied.minEdge
@@ -438,11 +549,13 @@ export default function ModelPanel({
 
   const descriptions: Record<Algo, string> = {
     inductive: t.algoInductiveDesc,
+    powl: t.algoPowlDesc,
     heuristics: t.algoHeuristicsDesc,
     alpha: t.algoAlphaDesc,
   };
   const hints: Record<Algo, string> = {
     inductive: t.modelHintInductive,
+    powl: t.modelHintPowl,
     heuristics: t.modelHintHeuristics,
     alpha: t.modelHintAlpha,
   };
@@ -455,7 +568,7 @@ export default function ModelPanel({
         <h2>{t.modelPanel}</h2>
         <span className="panel-controls">
           <span className="algo-switch" role="tablist" aria-label={t.algoLabel}>
-            {(["inductive", "heuristics", "alpha"] as Algo[]).map((algo) => (
+            {(["inductive", "powl", "heuristics", "alpha"] as Algo[]).map((algo) => (
               <button
                 key={algo}
                 role="tab"
@@ -465,9 +578,11 @@ export default function ModelPanel({
               >
                 {algo === "inductive"
                   ? t.algoInductive
-                  : algo === "heuristics"
-                    ? t.algoHeuristics
-                    : t.algoAlpha}
+                  : algo === "powl"
+                    ? t.algoPowl
+                    : algo === "heuristics"
+                      ? t.algoHeuristics
+                      : t.algoAlpha}
               </button>
             ))}
           </span>
@@ -476,7 +591,7 @@ export default function ModelPanel({
       <p className="muted guide">{descriptions[applied.algo]}</p>
       {applied.algo !== "alpha" ? (
         <div className="model-params">
-          {applied.algo === "inductive" ? (
+          {applied.algo === "inductive" || applied.algo === "powl" ? (
             <label title={t.paramNoiseHint}>
               {t.paramNoise}{" "}
               <input
@@ -536,6 +651,17 @@ export default function ModelPanel({
             <SimplicityLine tree={result.tree} />
             <div className="tree-scroll">
               <TreeNode tree={result.tree} />
+            </div>
+          </>
+        ) : result.algo === "powl" ? (
+          <>
+            <FitnessStrip
+              replay={result.replay}
+              precision={result.precision}
+              onShowCases={onShowCases}
+            />
+            <div className="tree-scroll">
+              <PowlNode model={result.model} />
             </div>
           </>
         ) : result.algo === "heuristics" ? (

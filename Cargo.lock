@@ -1377,9 +1377,9 @@ dependencies = [
 
 [[package]]
 name = "ocel-mine"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbbf05cbe68401cbd2f722094644e18d4b0391dcadb86b21058fdb1a6d2bb754"
+checksum = "190fd5bf260acc619d63d0731e64092b128470cc943bb6c8b295ff3eb5d75319"
 dependencies = [
  "chrono",
  "ocel",

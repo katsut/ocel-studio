@@ -66,6 +66,10 @@ export interface Messages {
   opTau: string;
   algoLabel: string;
   algoInductive: string;
+  algoPowl: string;
+  algoPowlDesc: string;
+  modelHintPowl: string;
+  opPartialOrder: string;
   algoHeuristics: string;
   algoAlpha: string;
   algoInductiveDesc: string;
@@ -275,6 +279,12 @@ export const MESSAGES: Record<Lang, Messages> = {
     opTau: "nothing happens (skip)",
     algoLabel: "Method",
     algoInductive: "Inductive",
+    algoPowl: "POWL",
+    algoPowlDesc:
+      "Like the inductive miner, but it can also say \"A and B in either order, both before C\" — partial orders instead of strict nesting. Compare its precision with the inductive tab.",
+    modelHintPowl:
+      "Numbered boxes with 1≺3-style notes mean: the box left of ≺ finishes before the right one starts; unnumbered boxes in a row are strictly ordered left to right; boxes without an order note run in any order.",
+    opPartialOrder: "partial order — some boxes are ordered, the rest interleave",
     algoHeuristics: "Heuristics",
     algoAlpha: "Alpha",
     algoInductiveDesc:
@@ -514,6 +524,12 @@ export const MESSAGES: Record<Lang, Messages> = {
     opTau: "何もしない（スキップ）",
     algoLabel: "見つけ方",
     algoInductive: "インダクティブ",
+    algoPowl: "POWL",
+    algoPowlDesc:
+      "インダクティブと同系ですが「A と B は順不同、ただし両方 C の前」のような半順序も表せます。精密さをインダクティブと見比べてください。",
+    modelHintPowl:
+      "番号付きの箱と 1≺3 の注記は「≺ の左の箱が終わってから右の箱が始まる」の意味です。番号のない横並びは左から順に、順序注記のない箱同士は順不同で進みます。",
+    opPartialOrder: "半順序 — 一部の箱に順序があり、残りは順不同",
     algoHeuristics: "ヒューリスティック",
     algoAlpha: "アルファ",
     algoInductiveDesc:
