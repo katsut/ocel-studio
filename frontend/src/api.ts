@@ -518,6 +518,7 @@ export type RecipeStep =
   | { renameEventTypes: Record<string, string> }
   | { timeWindow: { from?: string; to?: string } }
   | { keepObjectTypes: string[] }
+  | { mapObjectIds: { aliases: Record<string, string> } }
   | "dropObjectsWithoutEvents";
 
 export interface Recipe {

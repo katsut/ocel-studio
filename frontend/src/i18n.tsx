@@ -180,6 +180,7 @@ export interface Messages {
   stepNames: Record<string, string>;
   stepTypesPlaceholder: string;
   stepRenamePlaceholder: string;
+  stepAliasPlaceholder: string;
   predEventType: string;
   predAttr: string;
   predMatches: string;
@@ -416,10 +417,12 @@ export const MESSAGES: Record<Lang, Messages> = {
       renameEventTypes: "Rename/merge types",
       timeWindow: "Time window",
       keepObjectTypes: "Keep only object types",
+      mapObjectIds: "Merge object ids (alias table)",
       dropObjectsWithoutEvents: "Drop objects without events",
     },
     stepTypesPlaceholder: "type names, comma separated",
     stepRenamePlaceholder: "old=new, comma separated",
+    stepAliasPlaceholder: "alias=canonical id, comma separated",
     predEventType: "event type",
     predAttr: "attribute",
     predMatches: "regex the value must match",
@@ -654,10 +657,12 @@ export const MESSAGES: Record<Lang, Messages> = {
       renameEventTypes: "型をリネーム/統合",
       timeWindow: "期間で切り出す",
       keepObjectTypes: "オブジェクト型だけ残す",
+      mapObjectIds: "オブジェクト id を統合（別名表）",
       dropObjectsWithoutEvents: "イベントのないオブジェクトを消す",
     },
     stepTypesPlaceholder: "型名をカンマ区切りで",
     stepRenamePlaceholder: "旧=新 をカンマ区切りで",
+    stepAliasPlaceholder: "別名=正準id をカンマ区切りで",
     predEventType: "イベント型",
     predAttr: "属性名",
     predMatches: "値が一致すべき正規表現",
