@@ -185,6 +185,13 @@ export type ProcessTree =
   | { type: "parallel"; children: ProcessTree[] }
   | { type: "loop"; children: ProcessTree[] };
 
+export type PowlModel =
+  | { type: "activity"; label: string }
+  | { type: "tau" }
+  | { type: "exclusive"; children: PowlModel[] }
+  | { type: "loop"; children: PowlModel[] }
+  | { type: "partialOrder"; children: PowlModel[]; order: [number, number][] };
+
 export interface PetriNet {
   objectType: string;
   transitions: string[];
@@ -216,7 +223,7 @@ export interface HeuristicsNet {
   totalSuccessions: number;
 }
 
-export type Algo = "inductive" | "alpha" | "heuristics";
+export type Algo = "inductive" | "powl" | "alpha" | "heuristics";
 
 /// Discovery tuning; every value lands in the request URL, so results are
 /// cached per parameter set and re-running a previous setting is instant.
@@ -263,6 +270,7 @@ export interface PrecisionReport {
 
 export type ModelResult =
   | { algo: "inductive"; tree: ProcessTree; replay: ReplayReport; precision: PrecisionReport }
+  | { algo: "powl"; model: PowlModel; replay: ReplayReport; precision: PrecisionReport }
   | { algo: "alpha"; net: PetriNet; replay: ReplayReport; precision: PrecisionReport }
   | { algo: "heuristics"; net: HeuristicsNet };
 
@@ -347,7 +355,7 @@ export const fetchLeadTimes = (objectType: string, range: Range | null) =>
 
 export const fetchModel = (objectType: string, params: ModelParams, range: Range | null) => {
   let tuning = "";
-  if (params.algo === "inductive" && params.noise > 0) {
+  if ((params.algo === "inductive" || params.algo === "powl") && params.noise > 0) {
     tuning = `&noise=${params.noise}`;
   } else if (params.algo === "heuristics") {
     tuning = `&dependency=${params.dependency}&min_edge=${params.minEdge}`;
