@@ -8,6 +8,8 @@ export interface TypeStats {
   objects: number;
   withEvents: number;
   medianTraceLen: number;
+  medianActiveSpanSecs: number;
+  activityTypes: number;
 }
 
 export interface Summary {
@@ -22,13 +24,29 @@ export interface Summary {
   violations: string[];
 }
 
-/// The most case-like type: workable median trace length first, then the
-/// simplest lifecycle, best events coverage, most objects.
-export function caseLikeType(stats: TypeStats[]): string | null {
+/// The most case-like type: workable median trace length, a lifecycle-sized
+/// activity alphabet, then the simplest lifecycle, best events coverage,
+/// most objects.
+///
+/// Types whose traces cover (nearly) the whole activity alphabet are
+/// cross-cutting participants — actors and reference masters touch
+/// everything (fd: user 11/11; order-management: items 11/11) while a case
+/// notion selects its lifecycle subset (issue 6/11, orders 4/11). When every
+/// workable type covers everything (single-case-type logs), the filter
+/// backs off instead of emptying the pool.
+export function caseLikeType(stats: TypeStats[], logActivityTypes: number): string | null {
   const workable = stats.filter(
     (s) => s.withEvents > 0 && s.medianTraceLen >= 3 && s.medianTraceLen <= 20,
   );
-  const pool = workable.length > 0 ? workable : stats.filter((s) => s.withEvents > 0);
+  const focused = workable.filter(
+    (s) => s.activityTypes < 0.9 * Math.max(1, logActivityTypes),
+  );
+  const pool =
+    focused.length > 0
+      ? focused
+      : workable.length > 0
+        ? workable
+        : stats.filter((s) => s.withEvents > 0);
   if (pool.length === 0) {
     return stats[0]?.objectType ?? null;
   }

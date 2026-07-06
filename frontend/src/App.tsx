@@ -236,7 +236,9 @@ function Dashboard({
 
   const fileName = summary ? (summary.path.split("/").pop() ?? summary.path) : "";
   const slots = useMemo(() => typeSlots(summary?.objectTypes ?? []), [summary]);
-  const preferred = summary ? (caseLikeType(summary.typeStats) ?? "") : "";
+  const preferred = summary
+    ? (caseLikeType(summary.typeStats, summary.eventTypes.length) ?? "")
+    : "";
   const objectType =
     summary && chosenType !== "" && summary.objectTypes.some((ty) => ty.name === chosenType)
       ? chosenType
