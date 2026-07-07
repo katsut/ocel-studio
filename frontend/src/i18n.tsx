@@ -414,7 +414,7 @@ export const MESSAGES: Record<Lang, Messages> = {
       `Downloads order-management.sqlite (~35 MB) from Zenodo into ${dir} — only when you click, never on its own.`,
     emptyCliHint: "Next time the studio reopens the most recent log in that folder automatically.",
     navWorkspace: "Pipeline",
-    workspacePanel: "Pipeline",
+    workspacePanel: "Files",
     workspaceHint:
       "Every OCEL file in the studio folder is a log you can open — drop a file in and it appears here. Data sources that refresh these files automatically arrive in the next phase.",
     fileCol: "File",
@@ -685,7 +685,7 @@ export const MESSAGES: Record<Lang, Messages> = {
       `Zenodo から order-management.sqlite（約35MB）を ${dir} に保存します。押した時だけ通信します。`,
     emptyCliHint: "次回からは、このフォルダの最新のログを自動で開きます。",
     navWorkspace: "パイプライン",
-    workspacePanel: "パイプライン",
+    workspacePanel: "ファイル",
     workspaceHint:
       "スタジオのフォルダにある OCEL ファイルの一覧です。ファイルを置けばここに現れ、開くとすべての画面が切り替わります。ここを自動で更新するデータソース登録は次のフェーズで入ります。",
     fileCol: "ファイル",
