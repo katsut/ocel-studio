@@ -24,20 +24,38 @@ and a Backlog preset that composes an `ocel-backlog pull` source. See
 
 ## Quickstart
 
+Grab the all-in-one bundle from
+[Releases](https://github.com/katsut/ocel-studio/releases) (macOS arm64 /
+Linux x64 — the studio plus every connector, no toolchain needed):
+
 ```sh
-pnpm --dir frontend install
-pnpm --dir frontend build          # embedded into the binary at compile time
-cargo run --release
-# → ocel-studio running at http://127.0.0.1:6235/
+tar -xzf ocel-studio-*.tar.gz && cd ocel-studio-*/
+./ocel-studio
+# → http://localhost:6235
 ```
 
 No log yet? The studio starts empty and offers to fetch the official
 [Order Management](https://zenodo.org/records/18373906) sample (21K events,
-~35 MB) into its data directory with one click — it reopens the most recent
-log there on the next start. To open your own file:
+~35 MB) into its data directory with one click — the only network request it
+ever makes on its own. Then point it at your own data; a public GitHub repo
+needs no token:
 
 ```sh
-cargo run --release -- path/to/log.sqlite   # .json / .sqlite / .xml
+./ocel-github pull --repo owner/name --out my-repo.sqlite
+# open it from the studio's Workspace screen — or register the command as a
+# source there and re-pull incrementally with one click
+```
+
+Backlog (`BACKLOG_BASE_URL` + `BACKLOG_API_KEY`), CSV exports from any tool,
+and cleaning recipes ship in the same bundle.
+
+### Building from source
+
+```sh
+pnpm --dir frontend install
+pnpm --dir frontend build          # embedded into the binary at compile time
+cargo run --release
+cargo run --release -- path/to/log.sqlite   # open a specific .json / .sqlite / .xml
 ```
 
 ## The ocel family
@@ -46,8 +64,12 @@ cargo run --release -- path/to/log.sqlite   # .json / .sqlite / .xml
 |---|---|---|
 | Core model, I/O, validation | [ocel-rs](https://github.com/katsut/ocel-rs) (crates.io: [`ocel`](https://crates.io/crates/ocel)) | MIT |
 | ETL engine (StagingLog → OCEL) | [ocel-etl](https://github.com/katsut/ocel-etl) | MIT |
+| GitHub connector | [ocel-etl-github](https://github.com/katsut/ocel-etl-github) | MIT |
 | Backlog connector | [ocel-etl-backlog](https://github.com/katsut/ocel-etl-backlog) | MIT |
-| Analysis library (variants / OC-DFG / discovery / fitness) | [ocel-mine](https://github.com/katsut/ocel-mine) (crates.io: [`ocel-mine`](https://crates.io/crates/ocel-mine)) | MIT |
+| CSV importer | [ocel-etl-csv](https://github.com/katsut/ocel-etl-csv) | MIT |
+| Cleaning recipes | [ocel-transform](https://github.com/katsut/ocel-transform) (crates.io: [`ocel-transform`](https://crates.io/crates/ocel-transform)) | MIT |
+| Local-LLM annotation + identity resolution | [ocel-annotate](https://github.com/katsut/ocel-annotate) | MIT |
+| Analysis library (variants / OC-DFG / discovery / fitness / precision) | [ocel-mine](https://github.com/katsut/ocel-mine) (crates.io: [`ocel-mine`](https://crates.io/crates/ocel-mine)) | MIT |
 | **Studio — UI + data source management (this repo)** | ocel-studio | **Elastic License 2.0** |
 
 The studio never links connectors: it orchestrates them as child processes and reads

@@ -1,0 +1,97 @@
+name: Release
+
+# All-in-one distribution: the studio binary plus every connector and the
+# transform/annotate CLIs in one tarball, so "point it at your tracker" needs
+# no Rust toolchain and no PATH assembly. Triggered by a v* tag (or manually
+# for a dry run without uploading).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    name: Bundle (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ocel-studio
+      - name: Check out companion repos
+        run: |
+          for repo in ocel-etl-github ocel-etl-backlog ocel-etl-csv ocel-transform ocel-annotate; do
+            git clone --depth 1 "https://github.com/katsut/${repo}.git" "$repo"
+          done
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: ocel-studio/frontend/pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ocel-studio
+            ocel-etl-github
+            ocel-etl-backlog
+            ocel-etl-csv
+            ocel-transform
+            ocel-annotate
+      - name: Frontend build
+        run: |
+          pnpm --dir ocel-studio/frontend install --frozen-lockfile
+          pnpm --dir ocel-studio/frontend build
+      - name: Build binaries
+        run: |
+          for repo in ocel-studio ocel-etl-github ocel-etl-backlog ocel-etl-csv ocel-transform ocel-annotate; do
+            cargo build --release --manifest-path "$repo/Cargo.toml"
+          done
+      - name: Assemble tarball
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          name="ocel-studio-${version}-${{ matrix.target }}"
+          mkdir -p "$name"
+          cp ocel-studio/target/release/ocel-studio "$name/"
+          cp ocel-etl-github/target/release/ocel-github "$name/"
+          cp ocel-etl-backlog/target/release/ocel-backlog "$name/"
+          cp ocel-etl-csv/target/release/ocel-csv "$name/"
+          cp ocel-transform/target/release/ocel-transform "$name/"
+          cp ocel-annotate/target/release/ocel-annotate "$name/"
+          cp ocel-annotate/target/release/ocel-aliases "$name/"
+          cp ocel-studio/LICENSE.txt "$name/LICENSE.txt"
+          cp ocel-studio/.github/release-readme.txt "$name/README.txt"
+          tar -czf "${name}.tar.gz" "$name"
+          shasum -a 256 "${name}.tar.gz" > "${name}.tar.gz.sha256"
+      - name: Upload to release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --generate-notes 2>/dev/null || true
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            ocel-studio-*.tar.gz ocel-studio-*.tar.gz.sha256 --clobber
+      - name: Keep dry-run artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.target }}
+          path: ocel-studio-*.tar.gz*
