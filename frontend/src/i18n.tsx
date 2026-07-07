@@ -146,6 +146,7 @@ export interface Messages {
   clearFilter: string;
   backToCases: string;
   caseTimelineHint: string;
+  navGroupDiscovery: string;
   navMap: string;
   navPaths: string;
   navModel: string;
@@ -298,7 +299,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     tipOcTotal: (events) => `${events} events (shared events counted once)`,
     tipOcPerType: (objectType, events, objects) =>
       `${objectType}: ${events} events, ${objects} objects`,
-    modelPanel: "Model",
+    modelPanel: "Process discovery",
     opSequence: "in this order",
     opExclusive: "one of these",
     opParallel: "together, in any order",
@@ -399,6 +400,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     backToCases: "Back to the list",
     caseTimelineHint:
       "What happened to this one object, in order. Chips are the other objects involved in each event.",
+    navGroupDiscovery: "Discovery",
     navMap: "Map",
     navPaths: "Paths",
     navModel: "Model",
@@ -411,8 +413,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     emptySampleNote: (dir) =>
       `Downloads order-management.sqlite (~35 MB) from Zenodo into ${dir} — only when you click, never on its own.`,
     emptyCliHint: "Next time the studio reopens the most recent log in that folder automatically.",
-    navWorkspace: "Workspace",
-    workspacePanel: "Workspace",
+    navWorkspace: "Pipeline",
+    workspacePanel: "Pipeline",
     workspaceHint:
       "Every OCEL file in the studio folder is a log you can open — drop a file in and it appears here. Data sources that refresh these files automatically arrive in the next phase.",
     fileCol: "File",
@@ -566,7 +568,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     tipOcTotal: (events) => `${events}回のイベント（共有イベントは1回だけ数える）`,
     tipOcPerType: (objectType, events, objects) =>
       `${objectType}: ${events}回・${objects} オブジェクト`,
-    modelPanel: "プロセスの構造",
+    modelPanel: "プロセスディスカバリ",
     opSequence: "この順で進む",
     opExclusive: "どれか1つ",
     opParallel: "同時（順不同）",
@@ -669,6 +671,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     backToCases: "一覧へ戻る",
     caseTimelineHint:
       "この1オブジェクトに起きたことを時系列で。チップは各イベントに関わった他のオブジェクト。",
+    navGroupDiscovery: "ディスカバリ",
     navMap: "マップ",
     navPaths: "経路",
     navModel: "モデル",
@@ -681,8 +684,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     emptySampleNote: (dir) =>
       `Zenodo から order-management.sqlite（約35MB）を ${dir} に保存します。押した時だけ通信します。`,
     emptyCliHint: "次回からは、このフォルダの最新のログを自動で開きます。",
-    navWorkspace: "ワークスペース",
-    workspacePanel: "ワークスペース",
+    navWorkspace: "パイプライン",
+    workspacePanel: "パイプライン",
     workspaceHint:
       "スタジオのフォルダにある OCEL ファイルの一覧です。ファイルを置けばここに現れ、開くとすべての画面が切り替わります。ここを自動で更新するデータソース登録は次のフェーズで入ります。",
     fileCol: "ファイル",

@@ -246,15 +246,16 @@ function Dashboard({
       ? chosenType
       : preferred;
 
-  const nav: { key: Screen; label: string }[] = [
+  const nav: ({ key: Screen; label: string } | { header: string })[] = [
     { key: "overview", label: t.navOverview },
+    { key: "workspace", label: t.navWorkspace },
+    { header: t.navGroupDiscovery },
     { key: "map", label: t.navMap },
     { key: "paths", label: t.navPaths },
     { key: "cases", label: t.navCases },
     { key: "model", label: t.navModel },
     { key: "conformance", label: t.navConformance },
     { key: "data", label: t.navData },
-    { key: "workspace", label: t.navWorkspace },
   ];
 
   return (
@@ -326,15 +327,21 @@ function Dashboard({
       {summary && page ? (
         <div className="shell">
           <nav className="sidebar">
-            {nav.map((item) => (
-              <button
-                key={item.key}
-                className={screen === item.key ? "nav-item nav-active" : "nav-item"}
-                onClick={() => setScreen(item.key)}
-              >
-                {item.label}
-              </button>
-            ))}
+            {nav.map((item) =>
+              "header" in item ? (
+                <div key={`header:${item.header}`} className="nav-group">
+                  {item.header}
+                </div>
+              ) : (
+                <button
+                  key={item.key}
+                  className={screen === item.key ? "nav-item nav-active" : "nav-item"}
+                  onClick={() => setScreen(item.key)}
+                >
+                  {item.label}
+                </button>
+              ),
+            )}
           </nav>
           <main>
             {screen === "overview" ? (
