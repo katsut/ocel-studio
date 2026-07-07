@@ -18,8 +18,8 @@ const MAX_PAGE: usize = 500;
 /// spanning the boundary appear truncated — stated in the UI guide.
 #[derive(Deserialize, Default)]
 pub(super) struct RangeQuery {
-    from: Option<String>,
-    to: Option<String>,
+    pub(super) from: Option<String>,
+    pub(super) to: Option<String>,
 }
 
 fn parse_day(s: &str) -> Result<NaiveDate, ApiError> {
@@ -29,7 +29,10 @@ fn parse_day(s: &str) -> Result<NaiveDate, ApiError> {
 
 /// Borrow the log as-is, or build a windowed copy holding only the events
 /// inside the range (all declarations and objects are kept).
-fn window<'a>(log: &'a ocel::Ocel, range: &RangeQuery) -> Result<Cow<'a, ocel::Ocel>, ApiError> {
+pub(super) fn window<'a>(
+    log: &'a ocel::Ocel,
+    range: &RangeQuery,
+) -> Result<Cow<'a, ocel::Ocel>, ApiError> {
     if range.from.is_none() && range.to.is_none() {
         return Ok(Cow::Borrowed(log));
     }

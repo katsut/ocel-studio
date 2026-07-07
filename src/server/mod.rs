@@ -5,6 +5,7 @@
 //! show up on the next poll without any push machinery.
 
 mod analysis;
+mod models;
 mod recipes;
 mod sources;
 mod workspace;
@@ -24,6 +25,7 @@ use rust_embed::RustEmbed;
 use tokio::sync::RwLock;
 
 use analysis::{case_detail, cases, dfg, events, leadtimes, model, ocdfg, summary, variants};
+use models::{conformance, models_delete, models_list, models_register};
 use recipes::{recipes_delete, recipes_list, recipes_upsert, transform_preview};
 use sources::{
     load_history, load_sources, runs_list, secret_delete, secret_set, sources_delete, sources_list,
@@ -140,6 +142,9 @@ pub async fn run(
         .route("/api/recipes", get(recipes_list).post(recipes_upsert))
         .route("/api/recipes/{name}", delete(recipes_delete))
         .route("/api/transform/preview", post(transform_preview))
+        .route("/api/models", get(models_list).post(models_register))
+        .route("/api/models/{name}", delete(models_delete))
+        .route("/api/conformance", get(conformance))
         .fallback(get(asset))
         .with_state(state);
 
