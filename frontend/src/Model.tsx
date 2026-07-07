@@ -3,6 +3,7 @@ import { graphlib, layout } from "@dagrejs/dagre";
 import {
   DEFAULT_MODEL_PARAMS,
   fetchModel,
+  registerModel,
   type Algo,
   type HeuristicEdge,
   type HeuristicsNet,
@@ -447,7 +448,7 @@ function SimplicityLine({ tree }: { tree: ProcessTree }) {
   );
 }
 
-function FitnessStrip({
+export function FitnessStrip({
   replay,
   precision,
   onShowCases,
@@ -521,6 +522,12 @@ export default function ModelPanel({
   const [applied, setApplied] = useState<ModelParams>(DEFAULT_MODEL_PARAMS);
   const [model, setModel] = useState<{ forType: string; result: ModelResult } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [regOpen, setRegOpen] = useState(false);
+  const [regName, setRegName] = useState("");
+  const [regNote, setRegNote] = useState("");
+  const [regBusy, setRegBusy] = useState(false);
+  const [regDone, setRegDone] = useState<string | null>(null);
+  const [regError, setRegError] = useState<string | null>(null);
 
   useEffect(() => {
     if (objectType === "") {
@@ -562,6 +569,34 @@ export default function ModelPanel({
 
   const result = model && model.forType === objectType ? model.result : null;
 
+  // Registration freezes the applied params plus the current header range as
+  // the agreed scope — the server re-mines exactly that and stores the model.
+  const submitRegister = () => {
+    const name = regName.trim();
+    setRegBusy(true);
+    setRegError(null);
+    registerModel({
+      name,
+      note: regNote.trim(),
+      objectType,
+      algo: applied.algo,
+      params:
+        applied.algo === "inductive" || applied.algo === "powl" ? { noise: applied.noise } : {},
+      scope: {
+        ...(range?.from ? { from: range.from } : {}),
+        ...(range?.to ? { to: range.to } : {}),
+      },
+    })
+      .then(() => {
+        setRegDone(t.registerDone(name));
+        setRegOpen(false);
+        setRegName("");
+        setRegNote("");
+      })
+      .catch((err) => setRegError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setRegBusy(false));
+  };
+
   return (
     <div className="panel">
       <div className="panel-head">
@@ -589,56 +624,99 @@ export default function ModelPanel({
         </span>
       </div>
       <p className="muted guide">{descriptions[applied.algo]}</p>
-      {applied.algo !== "alpha" ? (
-        <div className="model-params">
-          {applied.algo === "inductive" || applied.algo === "powl" ? (
-            <label title={t.paramNoiseHint}>
-              {t.paramNoise}{" "}
+      <div className="model-params">
+        {applied.algo === "inductive" || applied.algo === "powl" ? (
+          <label title={t.paramNoiseHint}>
+            {t.paramNoise}{" "}
+            <input
+              type="range"
+              min={0}
+              max={50}
+              step={5}
+              value={Math.round(staged.noise * 100)}
+              onChange={(e) => setStaged({ ...staged, noise: Number(e.target.value) / 100 })}
+            />{" "}
+            <span className="param-value">{Math.round(staged.noise * 100)}%</span>
+          </label>
+        ) : applied.algo === "heuristics" ? (
+          <>
+            <label title={t.paramDependencyHint}>
+              {t.paramDependency}{" "}
               <input
                 type="range"
-                min={0}
-                max={50}
-                step={5}
-                value={Math.round(staged.noise * 100)}
-                onChange={(e) => setStaged({ ...staged, noise: Number(e.target.value) / 100 })}
+                min={50}
+                max={99}
+                step={1}
+                value={Math.round(staged.dependency * 100)}
+                onChange={(e) =>
+                  setStaged({ ...staged, dependency: Number(e.target.value) / 100 })
+                }
               />{" "}
-              <span className="param-value">{Math.round(staged.noise * 100)}%</span>
+              <span className="param-value">{staged.dependency.toFixed(2)}</span>
             </label>
-          ) : (
-            <>
-              <label title={t.paramDependencyHint}>
-                {t.paramDependency}{" "}
-                <input
-                  type="range"
-                  min={50}
-                  max={99}
-                  step={1}
-                  value={Math.round(staged.dependency * 100)}
-                  onChange={(e) =>
-                    setStaged({ ...staged, dependency: Number(e.target.value) / 100 })
-                  }
-                />{" "}
-                <span className="param-value">{staged.dependency.toFixed(2)}</span>
-              </label>
-              <label>
-                {t.paramMinEdge}{" "}
-                <input
-                  type="number"
-                  min={1}
-                  className="param-number"
-                  value={staged.minEdge}
-                  onChange={(e) =>
-                    setStaged({ ...staged, minEdge: Math.max(1, Number(e.target.value) || 1) })
-                  }
-                />
-              </label>
-            </>
-          )}
+            <label>
+              {t.paramMinEdge}{" "}
+              <input
+                type="number"
+                min={1}
+                className="param-number"
+                value={staged.minEdge}
+                onChange={(e) =>
+                  setStaged({ ...staged, minEdge: Math.max(1, Number(e.target.value) || 1) })
+                }
+              />
+            </label>
+          </>
+        ) : null}
+        {applied.algo !== "alpha" ? (
           <button className="rerun-button" disabled={!dirty} onClick={() => setApplied(staged)}>
             {t.rerunLabel}
           </button>
-        </div>
+        ) : null}
+        {applied.algo !== "heuristics" ? (
+          <button
+            className="rerun-button"
+            disabled={result === null || regBusy}
+            onClick={() => {
+              setRegOpen((open) => !open);
+              setRegDone(null);
+              setRegError(null);
+            }}
+          >
+            {t.registerLabel}
+          </button>
+        ) : null}
+      </div>
+      {regOpen && applied.algo !== "heuristics" ? (
+        <>
+          <p className="muted guide">{t.registerHint}</p>
+          <div className="source-form">
+            <input
+              placeholder={t.registerNamePlaceholder}
+              value={regName}
+              onChange={(e) => setRegName(e.target.value)}
+            />
+            <input
+              placeholder={t.registerNotePlaceholder}
+              size={40}
+              value={regNote}
+              onChange={(e) => setRegNote(e.target.value)}
+            />
+            <button
+              className="rerun-button"
+              disabled={regBusy || regName.trim() === ""}
+              onClick={submitRegister}
+            >
+              {t.registerLabel}
+            </button>
+            <button className="link-button" onClick={() => setRegOpen(false)}>
+              {t.closeLabel}
+            </button>
+          </div>
+        </>
       ) : null}
+      {regDone ? <p className="meta-ok">✓ {regDone}</p> : null}
+      {regError ? <div className="error">{regError}</div> : null}
       {error ? <div className="error">{error}</div> : null}
       {result ? (
         result.algo === "inductive" ? (

@@ -28,6 +28,7 @@ import {
   type Theme,
 } from "./preferences.ts";
 import CasesPanel from "./Cases.tsx";
+import ConformancePanel from "./Conformance.tsx";
 import FlowPanel from "./Flow.tsx";
 import ModelPanel from "./Model.tsx";
 import VariantsPanel from "./Variants.tsx";
@@ -42,6 +43,7 @@ export type Screen =
   | "paths"
   | "cases"
   | "model"
+  | "conformance"
   | "data"
   | "workspace";
 
@@ -250,6 +252,7 @@ function Dashboard({
     { key: "paths", label: t.navPaths },
     { key: "cases", label: t.navCases },
     { key: "model", label: t.navModel },
+    { key: "conformance", label: t.navConformance },
     { key: "data", label: t.navData },
     { key: "workspace", label: t.navWorkspace },
   ];
@@ -425,6 +428,19 @@ function Dashboard({
                 range={range}
                 modified={summary.modified}
                 onShowCases={(activities) => {
+                  setCaseFilter({ kind: "variant", activities });
+                  setScreen("cases");
+                }}
+              />
+            ) : null}
+            {screen === "conformance" ? (
+              <ConformancePanel
+                range={range}
+                lang={lang}
+                onShowCases={(forType, activities) => {
+                  if (forType !== objectType) {
+                    setChosenType(forType);
+                  }
                   setCaseFilter({ kind: "variant", activities });
                   setScreen("cases");
                 }}

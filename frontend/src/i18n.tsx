@@ -97,6 +97,30 @@ export interface Messages {
   coverageLine: (covered: string, total: string, pct: string) => string;
   simplicityLine: (activities: string, operators: string) => string;
   flowerBadge: string;
+  registerLabel: string;
+  registerHint: string;
+  registerNamePlaceholder: string;
+  registerNotePlaceholder: string;
+  registerDone: (name: string) => string;
+  navConformance: string;
+  conformancePanel: string;
+  conformanceHint: string;
+  conformanceEmpty: string;
+  checkLabel: string;
+  checkingLabel: string;
+  registeredAt: (date: string) => string;
+  scopeWholeLog: string;
+  snapshotLine: (
+    logFile: string,
+    events: string,
+    objects: string,
+    fitting: string,
+    traces: string,
+    pct: string,
+    precisionPct: string,
+  ) => string;
+  confOk: string;
+  confDrift: (n: string) => string;
   variantsPanel: string;
   objectTypeLabel: string;
   shareCol: string;
@@ -329,6 +353,26 @@ export const MESSAGES: Record<Lang, Messages> = {
     simplicityLine: (activities, operators) =>
       `Structure size: ${activities} activities, ${operators} branch/repeat points.`,
     flowerBadge: "contains a flower part (replays anything — fitness reads high)",
+    registerLabel: "Register",
+    registerHint:
+      "Registering freezes this exact model — parameters and the current period included — as the agreed standard. The Conformance screen then checks whether later periods of the log still follow it.",
+    registerNamePlaceholder: "name (e.g. order-standard)",
+    registerNotePlaceholder: "note — why this is the standard (optional)",
+    registerDone: (name) => `Registered “${name}” — check it anytime on the Conformance screen.`,
+    navConformance: "Conformance",
+    conformancePanel: "Conformance",
+    conformanceHint:
+      "A registered model is the agreed standard, frozen with its parameters and period. This screen replays the current log — or the period picked in the header — against that standard, to see whether reality still follows the agreement.",
+    conformanceEmpty:
+      "No registered models yet. Discover a model on the Model screen and press Register there.",
+    checkLabel: "Check",
+    checkingLabel: "checking…",
+    registeredAt: (date) => `registered ${date}`,
+    scopeWholeLog: "whole log at registration",
+    snapshotLine: (logFile, events, objects, fitting, traces, pct, precisionPct) =>
+      `At registration (${logFile}): ${events} events / ${objects} objects, replayed ${fitting}/${traces} cases (${pct}%), precision ${precisionPct}%.`,
+    confOk: "The current log still follows this model.",
+    confDrift: (n) => `${n} cases deviate from this model.`,
     variantsPanel: "Variants",
     objectTypeLabel: "Object type",
     shareCol: "Share",
@@ -577,6 +621,27 @@ export const MESSAGES: Record<Lang, Messages> = {
     simplicityLine: (activities, operators) =>
       `構造の大きさ: 活動 ${activities}・分岐/繰り返し ${operators}。`,
     flowerBadge: "フラワー構造を含む（何でも再生できるため適合度は高く出ます）",
+    registerLabel: "登録",
+    registerHint:
+      "登録すると、いま表示中のモデルを（パラメータと現在の期間ごと）合意した標準として凍結します。以後はコンフォーマンス画面で、新しい期間のログがこの標準どおりに動いているかを照合できます。",
+    registerNamePlaceholder: "名前（例: order-standard）",
+    registerNotePlaceholder: "メモ — なぜこれを標準とするか（任意）",
+    registerDone: (name) =>
+      `「${name}」を登録しました。コンフォーマンス画面でいつでも照合できます。`,
+    navConformance: "コンフォーマンス",
+    conformancePanel: "コンフォーマンス",
+    conformanceHint:
+      "登録したモデル＝合意した標準です（パラメータと期間ごと凍結されています）。この画面では、いまのログ（ヘッダーで期間を選べばその期間）をその標準に再生して、現実がまだ合意どおりに動いているかを照合します。",
+    conformanceEmpty:
+      "登録済みモデルはまだありません。モデル画面でモデルを表示し「登録」を押してください。",
+    checkLabel: "照合",
+    checkingLabel: "照合中…",
+    registeredAt: (date) => `登録 ${date}`,
+    scopeWholeLog: "登録時は全期間",
+    snapshotLine: (logFile, events, objects, fitting, traces, pct, precisionPct) =>
+      `登録時（${logFile}）: ${events} イベント / ${objects} オブジェクト・再生 ${fitting}/${traces} ケース（${pct}%）・精密さ ${precisionPct}%。`,
+    confOk: "現在のログはこのモデルの合意どおりに動いています。",
+    confDrift: (n) => `${n} ケースがこのモデルから外れています。`,
     variantsPanel: "よくある進み方",
     objectTypeLabel: "オブジェクトの種類",
     shareCol: "割合",

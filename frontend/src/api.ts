@@ -633,6 +633,84 @@ export const previewTransform = async (recipe: Recipe): Promise<TransformPreview
   return res.json() as Promise<TransformPreview>;
 };
 
+// --- registered models & conformance ------------------------------------------
+
+export interface ModelScope {
+  from?: string;
+  to?: string;
+}
+
+export interface ModelSnapshot {
+  logFile: string;
+  events: number;
+  objects: number;
+  fitness: { fitting: number; traces: number };
+  precision: number;
+}
+
+/// A frozen agreement: object type × scope × algorithm × params, plus how
+/// the log looked when it was registered. The model payload stays server-side.
+export interface RegisteredModel {
+  name: string;
+  note: string;
+  createdAt: string;
+  objectType: string;
+  scope: ModelScope;
+  algo: "inductive" | "powl" | "alpha";
+  params: { noise?: number; dependency?: number; minEdge?: number };
+  snapshot: ModelSnapshot;
+}
+
+// The registry reflects the models directory right now — never cached.
+async function modelsRequest(url: string, init?: RequestInit): Promise<RegisteredModel[]> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    throw new Error(`${url}: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<RegisteredModel[]>;
+}
+
+export const fetchRegisteredModels = () => modelsRequest("/api/models");
+
+/// Register the currently applied discovery as the agreed standard: the
+/// server re-mines the scoped log with these params and freezes the result.
+export const registerModel = (body: {
+  name: string;
+  note: string;
+  objectType: string;
+  algo: Algo;
+  params: { noise?: number };
+  scope: ModelScope;
+}) =>
+  modelsRequest("/api/models", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const deleteRegisteredModel = (name: string) =>
+  modelsRequest(`/api/models/${encodeURIComponent(name)}`, { method: "DELETE" });
+
+export interface ConformanceReport {
+  model: RegisteredModel;
+  replay: ReplayReport;
+  precision: PrecisionReport;
+}
+
+/// Replay the current log (windowed by the header range) against a
+/// registered model. Depends on the registry on disk — never cached.
+export const fetchConformance = async (
+  name: string,
+  range: Range | null,
+): Promise<ConformanceReport> => {
+  const url = `/api/conformance?model=${encodeURIComponent(name)}${rangeParams(range)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<ConformanceReport>;
+};
+
 /// Split a command line into program + args, honoring single/double quotes.
 export function splitCommandLine(line: string): string[] {
   const parts: string[] = [];
