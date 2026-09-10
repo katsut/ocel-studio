@@ -36,6 +36,29 @@ export function applyGuides(on: boolean): void {
   document.documentElement.dataset.guides = on ? "on" : "off";
 }
 
+const VIEW_KEY = "ocel-studio.view";
+
+export function loadViewName(): string | null {
+  try {
+    return localStorage.getItem(VIEW_KEY);
+  } catch (err) {
+    console.warn(`cannot read ${VIEW_KEY}`, err);
+    return null;
+  }
+}
+
+export function saveViewName(name: string | null): void {
+  try {
+    if (name === null) {
+      localStorage.removeItem(VIEW_KEY);
+    } else {
+      localStorage.setItem(VIEW_KEY, name);
+    }
+  } catch (err) {
+    console.warn(`cannot write ${VIEW_KEY}`, err);
+  }
+}
+
 export function loadLang(): Lang {
   const saved = localStorage.getItem(LANG_KEY);
   if (saved === "en" || saved === "ja") {

@@ -3,13 +3,13 @@ import { graphlib, layout } from "@dagrejs/dagre";
 import {
   fetchDfg,
   fetchOcDfg,
+  type Declaration,
   type Dfg,
   type DfgEdge,
   type DfgNode,
   type OcActivity,
   type OcDfg,
   type OcDfgEdge,
-  type Range,
   type TypeCount,
 } from "./api.ts";
 import { useMessages, type Messages } from "./i18n.tsx";
@@ -276,14 +276,14 @@ export default function FlowPanel({
   objectType,
   objectTypes,
   slots,
-  range,
+  declaration,
   modified,
   onShowCases,
 }: {
   objectType: string;
   objectTypes: TypeCount[];
   slots: Map<string, number>;
-  range: Range | null;
+  declaration: Declaration;
   modified: string;
   onShowCases: (from: string, to: string, objectType: string) => void;
 }) {
@@ -310,21 +310,21 @@ export default function FlowPanel({
     }
     setSel(null);
     if (types.length === 1) {
-      fetchDfg(objectType, range)
+      fetchDfg(declaration)
         .then((d) => {
           setDfg(d);
           setError(null);
         })
         .catch((err) => setError(err instanceof Error ? err.message : String(err)));
     } else {
-      fetchOcDfg(types, range)
+      fetchOcDfg(types, declaration)
         .then((data) => {
           setOc({ forKey: typesKey, data });
           setError(null);
         })
         .catch((err) => setError(err instanceof Error ? err.message : String(err)));
     }
-  }, [objectType, types, typesKey, range, modified]);
+  }, [objectType, types, typesKey, declaration, modified]);
 
   const overlayMode = types.length > 1;
   const filtered = !overlayMode && dfg && dfg.objectType === objectType ? filterEdges(dfg, detail) : null;

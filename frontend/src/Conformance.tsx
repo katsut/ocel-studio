@@ -4,7 +4,7 @@ import {
   fetchConformance,
   fetchRegisteredModels,
   type ConformanceReport,
-  type Range,
+  type Declaration,
   type RegisteredModel,
 } from "./api.ts";
 import { FitnessStrip } from "./Model.tsx";
@@ -15,11 +15,11 @@ function formatDate(iso: string, lang: Lang): string {
 }
 
 export default function ConformancePanel({
-  range,
+  declaration,
   lang,
   onShowCases,
 }: {
-  range: Range | null;
+  declaration: Declaration;
   lang: Lang;
   onShowCases: (objectType: string, activities: string[]) => void;
 }) {
@@ -36,12 +36,12 @@ export default function ConformancePanel({
       .catch((err) => setListError(err instanceof Error ? err.message : String(err)));
   }, []);
 
-  // A report answers "does this period follow the agreement?" — when the
-  // period changes, yesterday's answer must not linger.
+  // A report answers "does this declaration follow the agreement?" — when the
+  // declaration changes, yesterday's answer must not linger.
   useEffect(() => {
     setReports({});
     setErrors({});
-  }, [range]);
+  }, [declaration]);
 
   const check = (name: string) => {
     setChecking(name);
@@ -50,7 +50,7 @@ export default function ConformancePanel({
       delete next[name];
       return next;
     });
-    fetchConformance(name, range)
+    fetchConformance(name, declaration)
       .then((report) => setReports((prev) => ({ ...prev, [name]: report })))
       .catch((err) =>
         setErrors((prev) => ({

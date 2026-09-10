@@ -5,6 +5,7 @@ import {
   fetchModel,
   registerModel,
   type Algo,
+  type Declaration,
   type HeuristicEdge,
   type HeuristicsNet,
   type ModelParams,
@@ -13,7 +14,6 @@ import {
   type PowlModel,
   type PrecisionReport,
   type ProcessTree,
-  type Range,
   type ReplayReport,
 } from "./api.ts";
 import { useMessages, type Messages } from "./i18n.tsx";
@@ -508,12 +508,14 @@ export function FitnessStrip({
 
 export default function ModelPanel({
   objectType,
-  range,
+  declaration,
+  viewName,
   modified,
   onShowCases,
 }: {
   objectType: string;
-  range: Range | null;
+  declaration: Declaration;
+  viewName: string | null;
   modified: string;
   onShowCases: (activities: string[]) => void;
 }) {
@@ -533,13 +535,13 @@ export default function ModelPanel({
     if (objectType === "") {
       return;
     }
-    fetchModel(objectType, applied, range)
+    fetchModel(declaration, applied)
       .then((result) => {
         setModel({ forType: objectType, result });
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [objectType, applied, range, modified]);
+  }, [objectType, applied, declaration, modified]);
 
   const switchAlgo = (algo: Algo) => {
     const next = { ...staged, algo };
@@ -569,10 +571,11 @@ export default function ModelPanel({
 
   const result = model && model.forType === objectType ? model.result : null;
 
-  // Registration freezes the applied params plus the current header range as
-  // the agreed scope — the server re-mines exactly that and stores the model.
+  // Registration freezes the applied params plus the declared period as the
+  // agreed scope — the server re-mines exactly that and stores the model.
   const submitRegister = () => {
     const name = regName.trim();
+    const period = declaration.period;
     setRegBusy(true);
     setRegError(null);
     registerModel({
@@ -583,9 +586,10 @@ export default function ModelPanel({
       params:
         applied.algo === "inductive" || applied.algo === "powl" ? { noise: applied.noise } : {},
       scope: {
-        ...(range?.from ? { from: range.from } : {}),
-        ...(range?.to ? { to: range.to } : {}),
+        ...(period?.from ? { from: period.from } : {}),
+        ...(period?.to ? { to: period.to } : {}),
       },
+      view: viewName ?? undefined,
     })
       .then(() => {
         setRegDone(t.registerDone(name));

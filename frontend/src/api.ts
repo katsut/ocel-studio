@@ -85,16 +85,58 @@ export interface Range {
   to: string;
 }
 
-export function rangeParams(range: Range | null): string {
-  if (!range) {
-    return "";
+export interface PeriodBounds {
+  from?: string;
+  to?: string;
+}
+
+/// What the analysis endpoints resolve before aggregating: recipe first, then
+/// the via/notVia reachability filter, then the period.
+export interface Declaration {
+  caseType: string;
+  recipe?: string;
+  via?: string[];
+  notVia?: string[];
+  period?: Range | null;
+}
+
+/// A named, saved declaration. `baseLog` records which log it was written
+/// for; the server never resolves with it.
+export interface DeclarationSet {
+  name: string;
+  baseLog?: string;
+  recipe?: string;
+  caseType: string;
+  via?: string[];
+  notVia?: string[];
+  period?: PeriodBounds | null;
+  note?: string;
+}
+
+export interface DeclarationSetView extends DeclarationSet {
+  /// Absolute path of the stored declaration file.
+  file: string;
+}
+
+export function declarationParams(declaration: Declaration): string {
+  const parts: string[] = [];
+  if (declaration.caseType !== "") {
+    parts.push(`type=${encodeURIComponent(declaration.caseType)}`);
   }
-  const parts = [];
-  if (range.from !== "") {
-    parts.push(`from=${range.from}`);
+  const period = declaration.period;
+  if (period && period.from !== "") {
+    parts.push(`from=${period.from}`);
   }
-  if (range.to !== "") {
-    parts.push(`to=${range.to}`);
+  if (period && period.to !== "") {
+    parts.push(`to=${period.to}`);
+  }
+  if (declaration.recipe !== undefined && declaration.recipe !== "") {
+    parts.push(`recipe=${encodeURIComponent(declaration.recipe)}`);
+  }
+  if (declaration.via !== undefined && declaration.via.length > 0) {
+    parts.push(`via=${encodeURIComponent(declaration.via.join(","))}`);
+  } else if (declaration.notVia !== undefined && declaration.notVia.length > 0) {
+    parts.push(`notVia=${encodeURIComponent(declaration.notVia.join(","))}`);
   }
   return parts.length > 0 ? `&${parts.join("&")}` : "";
 }
@@ -292,14 +334,16 @@ export type ModelResult =
   | { algo: "alpha"; net: PetriNet; replay: ReplayReport; precision: PrecisionReport }
   | { algo: "heuristics"; net: HeuristicsNet };
 
-export const fetchSummary = (range: Range | null) =>
-  get<Summary>(`/api/summary?_=1${rangeParams(range)}`);
+export const fetchSummary = (declaration: Declaration) =>
+  get<Summary>(`/api/summary?_=1${declarationParams(declaration)}`);
 
-export const fetchDfg = (objectType: string, range: Range | null) =>
-  get<Dfg>(`/api/dfg?type=${encodeURIComponent(objectType)}${rangeParams(range)}`);
+export const fetchDfg = (declaration: Declaration) =>
+  get<Dfg>(`/api/dfg?_=1${declarationParams(declaration)}`);
 
-export const fetchOcDfg = (types: string[], range: Range | null) =>
-  get<OcDfg>(`/api/ocdfg?types=${encodeURIComponent(types.join(","))}${rangeParams(range)}`);
+export const fetchOcDfg = (types: string[], declaration: Declaration) =>
+  get<OcDfg>(
+    `/api/ocdfg?types=${encodeURIComponent(types.join(","))}${declarationParams(declaration)}`,
+  );
 
 export interface VariantLead {
   activities: string[];
@@ -346,9 +390,8 @@ export type CaseFilter =
   | { kind: "edge"; from: string; to: string };
 
 export const fetchCases = (
-  objectType: string,
+  declaration: Declaration,
   filter: CaseFilter | null,
-  range: Range | null,
   offset: number,
   limit: number,
 ) => {
@@ -359,19 +402,17 @@ export const fetchCases = (
     extra = `&edge=${encodeURIComponent(`${filter.from}\u001f${filter.to}`)}`;
   }
   return get<CasesPage>(
-    `/api/cases?type=${encodeURIComponent(objectType)}${extra}${rangeParams(range)}&offset=${offset}&limit=${limit}`,
+    `/api/cases?offset=${offset}&limit=${limit}${extra}${declarationParams(declaration)}`,
   );
 };
 
-export const fetchCase = (id: string, range: Range | null) =>
-  get<CaseDetail>(`/api/case?id=${encodeURIComponent(id)}${rangeParams(range)}`);
+export const fetchCase = (id: string, declaration: Declaration) =>
+  get<CaseDetail>(`/api/case?id=${encodeURIComponent(id)}${declarationParams(declaration)}`);
 
-export const fetchLeadTimes = (objectType: string, range: Range | null) =>
-  get<LeadTimeReport>(
-    `/api/leadtimes?type=${encodeURIComponent(objectType)}${rangeParams(range)}`,
-  );
+export const fetchLeadTimes = (declaration: Declaration) =>
+  get<LeadTimeReport>(`/api/leadtimes?_=1${declarationParams(declaration)}`);
 
-export const fetchModel = (objectType: string, params: ModelParams, range: Range | null) => {
+export const fetchModel = (declaration: Declaration, params: ModelParams) => {
   let tuning = "";
   if ((params.algo === "inductive" || params.algo === "powl") && params.noise > 0) {
     tuning = `&noise=${params.noise}`;
@@ -379,22 +420,22 @@ export const fetchModel = (objectType: string, params: ModelParams, range: Range
     tuning = `&dependency=${params.dependency}&min_edge=${params.minEdge}`;
   }
   return get<ModelResult>(
-    `/api/model?type=${encodeURIComponent(objectType)}&algo=${params.algo}${tuning}${rangeParams(range)}`,
+    `/api/model?algo=${params.algo}${tuning}${declarationParams(declaration)}`,
   );
 };
 
-export const fetchVariants = (objectType: string, range: Range | null, limit = 50) =>
-  get<VariantsResponse>(
-    `/api/variants?type=${encodeURIComponent(objectType)}&limit=${limit}${rangeParams(range)}`,
-  );
+export const fetchVariants = (declaration: Declaration, limit = 50) =>
+  get<VariantsResponse>(`/api/variants?limit=${limit}${declarationParams(declaration)}`);
 
-export const fetchEvents = (offset: number, limit: number, range: Range | null) =>
-  get<EventsPage>(`/api/events?offset=${offset}&limit=${limit}${rangeParams(range)}`);
+export const fetchEvents = (offset: number, limit: number, declaration: Declaration) =>
+  get<EventsPage>(`/api/events?offset=${offset}&limit=${limit}${declarationParams(declaration)}`);
 
 export interface Status {
   loaded: boolean;
   modified: string | null;
   dataDir: string;
+  /// File name of the loaded log, matched against a declaration's baseLog.
+  path?: string;
 }
 
 export const fetchStatus = async (): Promise<Status> => {
@@ -619,6 +660,32 @@ export const saveRecipe = (recipe: Recipe) =>
 export const deleteRecipe = (name: string) =>
   recipesRequest(`/api/recipes/${encodeURIComponent(name)}`, { method: "DELETE" });
 
+// --- declaration sets --------------------------------------------------------
+
+/// The saved declarations reflect the config directory right now — never
+/// cached, so a save is visible immediately.
+async function viewsRequest(url: string, init?: RequestInit): Promise<DeclarationSetView[]> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    throw new Error(`${url}: ${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<DeclarationSetView[]>;
+}
+
+export const fetchViews = () => viewsRequest("/api/views");
+
+export const saveView = (set: DeclarationSet) =>
+  viewsRequest("/api/views", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(set),
+  });
+
+export const deleteView = (name: string) =>
+  viewsRequest(`/api/views/${encodeURIComponent(name)}`, { method: "DELETE" });
+
+export const VIEW_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+
 /// What the recipe would do to the currently loaded log — never cached, and
 /// nothing is written.
 export const previewTransform = async (recipe: Recipe): Promise<TransformPreview> => {
@@ -681,6 +748,7 @@ export const registerModel = (body: {
   algo: Algo;
   params: { noise?: number };
   scope: ModelScope;
+  view?: string;
 }) =>
   modelsRequest("/api/models", {
     method: "POST",
@@ -697,13 +765,13 @@ export interface ConformanceReport {
   precision: PrecisionReport;
 }
 
-/// Replay the current log (windowed by the header range) against a
-/// registered model. Depends on the registry on disk — never cached.
+/// Replay the current declaration's log against a registered model. Depends
+/// on the registry on disk — never cached.
 export const fetchConformance = async (
   name: string,
-  range: Range | null,
+  declaration: Declaration,
 ): Promise<ConformanceReport> => {
-  const url = `/api/conformance?model=${encodeURIComponent(name)}${rangeParams(range)}`;
+  const url = `/api/conformance?model=${encodeURIComponent(name)}${declarationParams(declaration)}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`${res.status} ${await res.text()}`);
