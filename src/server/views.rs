@@ -11,6 +11,7 @@ use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
+use super::analysis::exclusive;
 use super::sources::valid_source_name;
 use super::{internal, ApiError, AppState};
 
@@ -88,21 +89,6 @@ fn declaration_views(config_dir: &Path) -> Vec<DeclarationSetView> {
     views
 }
 
-/// `via` and `notVia` are alternative readings of the same walk — a set that
-/// carries both says nothing definite, so it never gets saved.
-fn check_exclusive(
-    via: Option<&Vec<String>>,
-    not_via: Option<&Vec<String>>,
-) -> Result<(), ApiError> {
-    if via.is_some_and(|v| !v.is_empty()) && not_via.is_some_and(|v| !v.is_empty()) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "via and notVia are mutually exclusive".to_owned(),
-        ));
-    }
-    Ok(())
-}
-
 #[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
 pub(super) async fn views_list(
     State(state): State<Arc<AppState>>,
@@ -121,7 +107,10 @@ pub(super) async fn views_upsert(
             "declaration set names are 1-64 chars of letters, digits, - and _".to_owned(),
         ));
     }
-    check_exclusive(set.via.as_ref(), set.not_via.as_ref())?;
+    exclusive(
+        set.via.as_deref().unwrap_or_default(),
+        set.not_via.as_deref().unwrap_or_default(),
+    )?;
     let dir = views_dir(&state.config_dir);
     std::fs::create_dir_all(&dir).map_err(|e| internal(&e))?;
     let raw = serde_json::to_string_pretty(&set).map_err(|e| internal(&e))?;
@@ -191,19 +180,13 @@ mod tests {
 
     #[test]
     fn via_and_not_via_together_are_rejected() {
-        let via = vec!["items".to_owned()];
-        let not_via = vec!["users".to_owned()];
-        assert!(check_exclusive(Some(&via), None).is_ok());
-        assert!(check_exclusive(None, Some(&not_via)).is_ok());
-        assert!(check_exclusive(None, None).is_ok());
-        let err = check_exclusive(Some(&via), Some(&not_via)).expect_err("must reject");
+        let via = [String::from("items")];
+        let not_via = [String::from("users")];
+        assert!(exclusive(&via, &[]).is_ok());
+        assert!(exclusive(&[], &not_via).is_ok());
+        assert!(exclusive(&[], &[]).is_ok());
+        let err = exclusive(&via, &not_via).expect_err("must reject");
         assert_eq!(err.0, StatusCode::BAD_REQUEST);
-    }
-
-    #[test]
-    fn empty_lists_do_not_count_as_set() {
-        let via = vec!["items".to_owned()];
-        assert!(check_exclusive(Some(&via), Some(&Vec::new())).is_ok());
     }
 
     #[test]

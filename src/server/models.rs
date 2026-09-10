@@ -14,7 +14,7 @@ use axum::Json;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::analysis::{window, RangeQuery};
+use super::analysis::{resolve, window, ViewQuery};
 use super::sources::valid_source_name;
 use super::{ensure_fresh, internal, no_log, ApiError, AppState};
 
@@ -80,6 +80,10 @@ pub(super) struct ModelMeta {
     algo: String,
     #[serde(default)]
     params: Params,
+    /// Name of the declaration set the registration was made from, when it
+    /// came from a saved one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    view: Option<String>,
     snapshot: Snapshot,
 }
 
@@ -357,6 +361,8 @@ pub(super) struct RegisterBody {
     params: Params,
     #[serde(default)]
     scope: Scope,
+    #[serde(default)]
+    view: Option<String>,
 }
 
 /// Register a model: re-mine the scoped (time-windowed) log with the given
@@ -388,11 +394,7 @@ pub(super) async fn models_register(
         from: clean(body.scope.from),
         to: clean(body.scope.to),
     };
-    let range = RangeQuery {
-        from: scope.from.clone(),
-        to: scope.to.clone(),
-    };
-    let log = window(&loaded.log, &range)?;
+    let log = window(&loaded.log, scope.from.as_deref(), scope.to.as_deref())?;
     if !has_object_type(&log, &body.object_type) {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -413,6 +415,7 @@ pub(super) async fn models_register(
             scope,
             algo: body.algo,
             params,
+            view: body.view,
             snapshot: Snapshot {
                 log_file: loaded
                     .path
@@ -458,7 +461,7 @@ pub(super) struct ConformanceQuery {
     /// Name of the registered model to check against.
     model: String,
     #[serde(flatten)]
-    range: RangeQuery,
+    view: ViewQuery,
 }
 
 #[derive(Serialize)]
@@ -481,10 +484,12 @@ pub(super) async fn conformance(
         return Err((StatusCode::BAD_REQUEST, "not a model name".to_owned()));
     }
     let record = load_record(&state.config_dir, &query.model)?;
-    ensure_fresh(&state).await?;
-    let guard = state.loaded.read().await;
-    let loaded = guard.as_ref().ok_or_else(no_log)?;
-    let log = window(&loaded.log, &query.range)?;
+    let resolution = resolve(&state, &query.view).await?;
+    let log = window(
+        resolution.log(),
+        query.view.from.as_deref(),
+        query.view.to.as_deref(),
+    )?;
     if !has_object_type(&log, &record.meta.object_type) {
         return Err((
             StatusCode::CONFLICT,

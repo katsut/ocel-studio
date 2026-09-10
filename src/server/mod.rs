@@ -25,7 +25,9 @@ use axum::Router;
 use rust_embed::RustEmbed;
 use tokio::sync::RwLock;
 
-use analysis::{case_detail, cases, dfg, events, leadtimes, model, ocdfg, summary, variants};
+use analysis::{
+    case_detail, cases, dfg, events, leadtimes, model, ocdfg, summary, time_order, variants,
+};
 use models::{conformance, models_delete, models_list, models_register};
 use recipes::{recipes_delete, recipes_list, recipes_upsert, transform_preview};
 use sources::{
@@ -48,10 +50,34 @@ struct Loaded {
     type_stats: Vec<ocel_mine::TypeStats>,
 }
 
+/// What a declaration resolves the loaded log to: the transformed log plus
+/// the indices `Loaded` keeps for the raw one. Recipe application and the
+/// reachability walk both clone and scan the whole log, so one resolution is
+/// cached and reused until the declaration or the file changes.
+struct Resolved {
+    key: ResolvedKey,
+    log: ocel::Ocel,
+    by_time: Vec<usize>,
+    type_stats: Vec<ocel_mine::TypeStats>,
+}
+
+/// Everything a resolution depends on. The period is not part of it — time
+/// windowing stays a per-request `Cow` over the resolved log.
+#[derive(PartialEq, Eq)]
+struct ResolvedKey {
+    modified: SystemTime,
+    recipe: Option<String>,
+    object_type: Option<String>,
+    via: Vec<String>,
+    not_via: Vec<String>,
+}
+
 struct AppState {
     data_dir: PathBuf,
     config_dir: PathBuf,
     loaded: RwLock<Option<Loaded>>,
+    /// The single cached resolution, if the last request produced one.
+    resolved: RwLock<Option<Resolved>>,
     sources: RwLock<Vec<SourceConfig>>,
     runs: RwLock<HashMap<String, RunState>>,
     /// Completed runs, newest first, persisted to `runs.json`.
@@ -116,6 +142,7 @@ pub async fn run(
         data_dir,
         config_dir,
         loaded: RwLock::new(loaded),
+        resolved: RwLock::new(None),
         sources: RwLock::new(sources),
         runs: RwLock::new(runs),
         history: RwLock::new(history),
@@ -162,8 +189,7 @@ pub async fn run(
 fn load(path: &Path) -> Result<Loaded, Box<dyn Error>> {
     let modified = std::fs::metadata(path)?.modified()?;
     let log = ocel::io::read_path(path)?;
-    let mut by_time: Vec<usize> = (0..log.events.len()).collect();
-    by_time.sort_by_key(|&i| log.events[i].time);
+    let by_time = time_order(&log);
     let violations = ocel::validate::validate(&log)
         .iter()
         .map(ToString::to_string)
@@ -211,6 +237,7 @@ async fn ensure_fresh(state: &AppState) -> Result<(), ApiError> {
             loaded.log.objects.len()
         );
         *state.loaded.write().await = Some(loaded);
+        *state.resolved.write().await = None;
     }
     Ok(())
 }

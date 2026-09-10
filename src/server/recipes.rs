@@ -50,6 +50,20 @@ fn recipe_views(config_dir: &Path) -> Vec<RecipeView> {
     views
 }
 
+/// Read one stored recipe by name, for a declaration that names it.
+pub(super) fn load_recipe(
+    config_dir: &Path,
+    name: &str,
+) -> Result<ocel_transform::Recipe, ApiError> {
+    if !valid_source_name(name) {
+        return Err((StatusCode::BAD_REQUEST, "not a recipe name".to_owned()));
+    }
+    let path = recipes_dir(config_dir).join(format!("{name}.json"));
+    let raw = std::fs::read_to_string(&path)
+        .map_err(|_| (StatusCode::NOT_FOUND, format!("no such recipe: {name}")))?;
+    serde_json::from_str(&raw).map_err(|e| internal(&e))
+}
+
 #[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
 pub(super) async fn recipes_list(State(state): State<Arc<AppState>>) -> Json<Vec<RecipeView>> {
     Json(recipe_views(&state.config_dir))

@@ -118,6 +118,7 @@ pub(super) async fn sample(State(state): State<Arc<AppState>>) -> Result<Json<St
     let loaded = load(&target).map_err(|e| internal(&*e))?;
     let modified = loaded.modified;
     *state.loaded.write().await = Some(loaded);
+    *state.resolved.write().await = None;
     Ok(Json(Status {
         loaded: true,
         modified: Some(modified.into()),
@@ -220,6 +221,7 @@ pub(super) async fn open_log(
         loaded.log.objects.len()
     );
     *state.loaded.write().await = Some(loaded);
+    *state.resolved.write().await = None;
     Ok(Json(Status {
         loaded: true,
         modified: Some(modified.into()),
