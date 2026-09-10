@@ -101,8 +101,13 @@ pub(super) async fn transform_preview(
     let guard = state.loaded.read().await;
     let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = loaded.log.clone();
+    let base_dir = loaded
+        .path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
     drop(guard);
-    let (result, steps) = ocel_transform::preview(&recipe, log, PREVIEW_SAMPLE)
+    let (result, steps) = ocel_transform::preview(&recipe, log, &base_dir, PREVIEW_SAMPLE)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     Ok(Json(TransformPreview {
         steps,
