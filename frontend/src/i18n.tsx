@@ -122,7 +122,29 @@ export interface Messages {
   confOk: string;
   confDrift: (n: string) => string;
   variantsPanel: string;
-  objectTypeLabel: string;
+  declViewLabel: string;
+  declUnnamed: string;
+  declEditLabel: string;
+  declBarTitle: string;
+  declCaseTypeLabel: string;
+  declRecipeLabel: string;
+  declNoRecipe: string;
+  declPeriodLabel: string;
+  declPeriodClear: string;
+  declViaLabel: string;
+  declViaAny: string;
+  declViaOnly: string;
+  declNotViaOnly: string;
+  declViaHint: string;
+  declNotViaHint: string;
+  declNotePlaceholder: string;
+  declSaveLabel: string;
+  declSaveAsLabel: string;
+  declDeleteLabel: string;
+  declSaveNeedsName: string;
+  declNamePlaceholder: string;
+  declNameInvalid: string;
+  declBaseLogHint: (baseLog: string) => string;
   shareCol: string;
   sequenceCol: string;
   coverage: (withEvents: string, objects: string) => string;
@@ -130,7 +152,6 @@ export interface Messages {
   themeTitle: string;
   langTitle: string;
   guidesTitle: string;
-  rangeTitle: string;
   rangeNote: string;
   navOverview: string;
   navCases: string;
@@ -292,7 +313,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     tipNodeEvents: (events, objects) => `Happened ${events} times across ${objects} objects`,
     tipNodeStartEnd: (starts, ends) => `Starts a trace ${starts}×, ends one ${ends}×`,
     overlayLabel: "Overlay",
-    overlayBaseTitle: "The base type follows the selector in the header.",
+    overlayBaseTitle: "The base type follows the case type in the declaration.",
     overlayHint:
       "The object-centric map: each arrow color is one object type's flow, overlaid without flattening. An event touching several selected types counts once in the activity totals. Click an arrow for its numbers — the type is always named, never color alone.",
     tipEdgeType: (objectType) => `Object type: ${objectType}`,
@@ -356,14 +377,14 @@ export const MESSAGES: Record<Lang, Messages> = {
     flowerBadge: "contains a flower part (replays anything — fitness reads high)",
     registerLabel: "Register",
     registerHint:
-      "Registering freezes this exact model — parameters and the current period included — as the agreed standard. The Conformance screen then checks whether later periods of the log still follow it.",
+      "Registering freezes this exact model — parameters and the declared period included — as the agreed standard. The Conformance screen then checks whether later periods of the log still follow it.",
     registerNamePlaceholder: "name (e.g. order-standard)",
     registerNotePlaceholder: "note — why this is the standard (optional)",
     registerDone: (name) => `Registered “${name}” — check it anytime on the Conformance screen.`,
     navConformance: "Conformance",
     conformancePanel: "Conformance",
     conformanceHint:
-      "A registered model is the agreed standard, frozen with its parameters and period. This screen replays the current log — or the period picked in the header — against that standard, to see whether reality still follows the agreement.",
+      "A registered model is the agreed standard, frozen with its parameters and period. This screen replays the current declaration against that standard, to see whether reality still follows the agreement.",
     conformanceEmpty:
       "No registered models yet. Discover a model on the Model screen and press Register there.",
     checkLabel: "Check",
@@ -375,7 +396,32 @@ export const MESSAGES: Record<Lang, Messages> = {
     confOk: "The current log still follows this model.",
     confDrift: (n) => `${n} cases deviate from this model.`,
     variantsPanel: "Variants",
-    objectTypeLabel: "Object type",
+    declViewLabel: "Declaration",
+    declUnnamed: "Unnamed",
+    declEditLabel: "Edit",
+    declBarTitle:
+      "A declaration says what this analysis is about: the case type, an optional cleaning recipe, which object types a case may pass through, and the period. Every screen is computed from it.",
+    declCaseTypeLabel: "Case type",
+    declRecipeLabel: "Recipe",
+    declNoRecipe: "no recipe",
+    declPeriodLabel: "Period",
+    declPeriodClear: "Clear the period",
+    declViaLabel: "Passing through",
+    declViaAny: "any object type",
+    declViaOnly: "only via",
+    declNotViaOnly: "never via",
+    declViaHint:
+      "With “only via”, a case is kept when it is related to at least one object of every picked type — the rest of the log is filtered out before anything is counted.",
+    declNotViaHint:
+      "With “never via”, a case is dropped as soon as it is related to an object of a picked type.",
+    declNotePlaceholder: "note — whose view this is (optional)",
+    declSaveLabel: "Save",
+    declSaveAsLabel: "Save as…",
+    declDeleteLabel: "Delete",
+    declSaveNeedsName: "This declaration has no name yet — use Save as…",
+    declNamePlaceholder: "name (letters, digits, - and _)",
+    declNameInvalid: "Names take ASCII letters, digits, - and _, up to 64 characters.",
+    declBaseLogHint: (baseLog) => `This declaration was written for ${baseLog}.`,
     shareCol: "Share",
     sequenceCol: "Sequence",
     coverage: (withEvents, objects) => `${withEvents} of ${objects} objects have events`,
@@ -383,7 +429,6 @@ export const MESSAGES: Record<Lang, Messages> = {
     themeTitle: "Theme",
     langTitle: "Language",
     guidesTitle: "Reading guides",
-    rangeTitle: "Period",
     rangeNote: "Filtering by period recomputes every screen over the events inside it; cases that span the boundary appear cut.",
     navOverview: "Overview",
     navCases: "Cases",
@@ -561,7 +606,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     tipNodeEvents: (events, objects) => `${events}回発生・${objects} 個のオブジェクトが通過`,
     tipNodeStartEnd: (starts, ends) => `トレースの開始 ${starts}回・終了 ${ends}回`,
     overlayLabel: "重ねる型",
-    overlayBaseTitle: "基準の型はヘッダーのセレクタに追随します。",
+    overlayBaseTitle: "基準の型は宣言のケースの型に追随します。",
     overlayHint:
       "オブジェクト中心のマップ: 矢印の色がオブジェクト型ごとの流れで、平坦化せずに重ねています。複数の型に触れるイベントも活動の合計では1回だけ数えます。矢印をクリックすると数字が見られます（型は必ず文字でも示します）。",
     tipEdgeType: (objectType) => `オブジェクト型: ${objectType}`,
@@ -625,7 +670,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     flowerBadge: "フラワー構造を含む（何でも再生できるため適合度は高く出ます）",
     registerLabel: "登録",
     registerHint:
-      "登録すると、いま表示中のモデルを（パラメータと現在の期間ごと）合意した標準として凍結します。以後はコンフォーマンス画面で、新しい期間のログがこの標準どおりに動いているかを照合できます。",
+      "登録すると、いま表示中のモデルをパラメータと宣言中の期間ごと、合意した標準として凍結します。以後はコンフォーマンス画面で、新しい期間のログがこの標準どおりに動いているかを照合できます。",
     registerNamePlaceholder: "名前（例: order-standard）",
     registerNotePlaceholder: "メモ — なぜこれを標準とするか（任意）",
     registerDone: (name) =>
@@ -633,7 +678,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     navConformance: "コンフォーマンス",
     conformancePanel: "コンフォーマンス",
     conformanceHint:
-      "登録したモデル＝合意した標準です（パラメータと期間ごと凍結されています）。この画面では、いまのログ（ヘッダーで期間を選べばその期間）をその標準に再生して、現実がまだ合意どおりに動いているかを照合します。",
+      "登録したモデル＝合意した標準です。パラメータと期間ごと凍結されています。この画面では、いまの宣言をその標準に再生して、現実がまだ合意どおりに動いているかを照合します。",
     conformanceEmpty:
       "登録済みモデルはまだありません。モデル画面でモデルを表示し「登録」を押してください。",
     checkLabel: "照合",
@@ -645,7 +690,32 @@ export const MESSAGES: Record<Lang, Messages> = {
     confOk: "現在のログはこのモデルの合意どおりに動いています。",
     confDrift: (n) => `${n} ケースがこのモデルから外れています。`,
     variantsPanel: "よくある進み方",
-    objectTypeLabel: "オブジェクトの種類",
+    declViewLabel: "宣言",
+    declUnnamed: "名無し",
+    declEditLabel: "編集",
+    declBarTitle:
+      "宣言は「この分析が何についてのものか」を決めます。ケースにする型・クリーニングレシピ・ケースが経由してよい型・期間の4つです。すべての画面はこの宣言から計算されます。",
+    declCaseTypeLabel: "ケースの型",
+    declRecipeLabel: "レシピ",
+    declNoRecipe: "レシピなし",
+    declPeriodLabel: "期間",
+    declPeriodClear: "期間を解除",
+    declViaLabel: "経由",
+    declViaAny: "型を問わない",
+    declViaOnly: "この型を経由するものだけ",
+    declNotViaOnly: "この型を経由しないものだけ",
+    declViaHint:
+      "「経由するものだけ」は、選んだ型のオブジェクトに1つ以上つながるケースだけを残します。集計の前にログそのものを絞ります。",
+    declNotViaHint:
+      "「経由しないものだけ」は、選んだ型のオブジェクトにつながるケースをその時点で落とします。",
+    declNotePlaceholder: "メモ — 誰の視点か（任意）",
+    declSaveLabel: "保存",
+    declSaveAsLabel: "別名で保存",
+    declDeleteLabel: "削除",
+    declSaveNeedsName: "この宣言はまだ名無しです。「別名で保存」を使ってください",
+    declNamePlaceholder: "名前（英数字と - _ ）",
+    declNameInvalid: "名前は ASCII 英数字と - _ のみ、64 字までです。",
+    declBaseLogHint: (baseLog) => `この宣言は ${baseLog} 用です。`,
     shareCol: "割合",
     sequenceCol: "シーケンス",
     coverage: (withEvents, objects) =>
@@ -654,7 +724,6 @@ export const MESSAGES: Record<Lang, Messages> = {
     themeTitle: "テーマ",
     langTitle: "言語",
     guidesTitle: "読み方ガイド",
-    rangeTitle: "期間",
     rangeNote: "期間で絞ると、その期間内のイベントだけで全画面を再計算します。期間をまたぐケースは途中扱いになります。",
     navOverview: "概要",
     navCases: "ケース",

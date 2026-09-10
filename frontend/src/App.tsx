@@ -2,14 +2,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   caseLikeType,
   clearApiCache,
+  deleteView,
   fetchEvents,
+  fetchRecipes,
   fetchSample,
   fetchStatus,
   fetchSummary,
+  fetchViews,
+  openLog,
+  saveView,
   typeSlots,
+  VIEW_NAME_PATTERN,
   type CaseFilter,
+  type Declaration,
+  type DeclarationSet,
+  type DeclarationSetView,
   type EventsPage,
-  type Range,
   type Status,
   type Summary,
   type TypeCount,
@@ -22,8 +30,10 @@ import {
   loadGuides,
   loadLang,
   loadTheme,
+  loadViewName,
   nextTheme,
   saveLang,
+  saveViewName,
   themeIcon,
   type Theme,
 } from "./preferences.ts";
@@ -174,6 +184,267 @@ function EventsPanel({
   );
 }
 
+type ViaMode = "any" | "via" | "notVia";
+
+function viaMode(declaration: Declaration): ViaMode {
+  if (declaration.via !== undefined) {
+    return "via";
+  }
+  return declaration.notVia !== undefined ? "notVia" : "any";
+}
+
+function DeclarationBar({
+  objectTypes,
+  caseType,
+  declaration,
+  note,
+  recipes,
+  viewName,
+  baseLog,
+  logPath,
+  error,
+  onChange,
+  onNote,
+  onSave,
+  onDelete,
+  onOpenBaseLog,
+}: {
+  objectTypes: TypeCount[];
+  caseType: string;
+  declaration: Declaration;
+  note: string;
+  recipes: string[];
+  viewName: string | null;
+  baseLog: string | null;
+  logPath: string | null;
+  error: string | null;
+  onChange: (next: Declaration) => void;
+  onNote: (next: string) => void;
+  onSave: (name: string) => void;
+  onDelete: () => void;
+  onOpenBaseLog: (name: string) => void;
+}) {
+  const t = useMessages();
+  const [naming, setNaming] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const mode = viaMode(declaration);
+  const picked = declaration.via ?? declaration.notVia ?? [];
+  const period = declaration.period ?? null;
+
+  const setMode = (next: ViaMode) => {
+    if (next === "any") {
+      onChange({ ...declaration, via: undefined, notVia: undefined });
+    } else if (next === "via") {
+      onChange({ ...declaration, via: picked, notVia: undefined });
+    } else {
+      onChange({ ...declaration, via: undefined, notVia: picked });
+    }
+  };
+
+  const toggle = (name: string) => {
+    const next = picked.includes(name)
+      ? picked.filter((ty) => ty !== name)
+      : [...picked, name];
+    if (mode === "notVia") {
+      onChange({ ...declaration, via: undefined, notVia: next });
+    } else {
+      onChange({ ...declaration, via: next, notVia: undefined });
+    }
+  };
+
+  const confirmName = () => {
+    const name = newName.trim();
+    if (!VIEW_NAME_PATTERN.test(name)) {
+      setNameError(t.declNameInvalid);
+      return;
+    }
+    setNameError(null);
+    setNaming(false);
+    setNewName("");
+    onSave(name);
+  };
+
+  return (
+    <div className="decl-bar">
+      {baseLog !== null && logPath !== null && baseLog !== logPath ? (
+        <div className="decl-row decl-baselog">
+          <span>{t.declBaseLogHint(baseLog)}</span>
+          <button className="link-button" onClick={() => onOpenBaseLog(baseLog)}>
+            {t.openLabel}
+          </button>
+        </div>
+      ) : null}
+      <div className="decl-row">
+        <label>
+          {t.declCaseTypeLabel}{" "}
+          <select
+            className="header-select"
+            value={caseType}
+            onChange={(e) => onChange({ ...declaration, caseType: e.target.value })}
+          >
+            {objectTypes.map((ty) => (
+              <option key={ty.name} value={ty.name}>
+                {ty.name} ({ty.count.toLocaleString()})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t.declRecipeLabel}{" "}
+          <select
+            className="header-select"
+            value={declaration.recipe ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...declaration,
+                recipe: e.target.value === "" ? undefined : e.target.value,
+              })
+            }
+          >
+            <option value="">{t.declNoRecipe}</option>
+            {recipes.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="header-range" title={t.rangeNote}>
+          {t.declPeriodLabel}{" "}
+          <input
+            type="date"
+            value={period?.from ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...declaration,
+                period: { from: e.target.value, to: period?.to ?? "" },
+              })
+            }
+          />
+          <span className="muted">–</span>
+          <input
+            type="date"
+            value={period?.to ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...declaration,
+                period: { from: period?.from ?? "", to: e.target.value },
+              })
+            }
+          />
+          {period ? (
+            <button
+              className="link-button"
+              title={t.declPeriodClear}
+              onClick={() => onChange({ ...declaration, period: null })}
+            >
+              ✕
+            </button>
+          ) : null}
+        </span>
+      </div>
+      <div className="decl-row">
+        <span className="decl-modes" role="radiogroup" aria-label={t.declViaLabel}>
+          {(["any", "via", "notVia"] as ViaMode[]).map((option) => (
+            <label key={option}>
+              <input
+                type="radio"
+                name="decl-via-mode"
+                checked={mode === option}
+                onChange={() => setMode(option)}
+              />{" "}
+              {option === "any"
+                ? t.declViaAny
+                : option === "via"
+                  ? t.declViaOnly
+                  : t.declNotViaOnly}
+            </label>
+          ))}
+        </span>
+        {mode === "any" ? null : (
+          <span className="type-chips decl-chips">
+            {objectTypes
+              .filter((ty) => ty.name !== caseType)
+              .map((ty) => (
+                <button
+                  key={ty.name}
+                  className={picked.includes(ty.name) ? "type-chip active" : "type-chip"}
+                  onClick={() => toggle(ty.name)}
+                >
+                  {ty.name}
+                </button>
+              ))}
+          </span>
+        )}
+      </div>
+      <p className="muted guide">{mode === "notVia" ? t.declNotViaHint : t.declViaHint}</p>
+      <div className="decl-row">
+        <input
+          className="decl-note"
+          placeholder={t.declNotePlaceholder}
+          size={40}
+          value={note}
+          onChange={(e) => onNote(e.target.value)}
+        />
+        <button
+          className="rerun-button"
+          disabled={viewName === null}
+          title={viewName === null ? t.declSaveNeedsName : undefined}
+          onClick={() => onSave(viewName ?? "")}
+        >
+          {t.declSaveLabel}
+        </button>
+        <button
+          className="rerun-button"
+          onClick={() => {
+            setNaming(true);
+            setNameError(null);
+            setNewName(viewName ?? "");
+          }}
+        >
+          {t.declSaveAsLabel}
+        </button>
+        {viewName !== null ? (
+          <button className="link-button" onClick={onDelete}>
+            {t.declDeleteLabel}
+          </button>
+        ) : null}
+      </div>
+      {naming ? (
+        <div className="decl-row">
+          <input
+            placeholder={t.declNamePlaceholder}
+            value={newName}
+            autoFocus
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                confirmName();
+              }
+            }}
+          />
+          <button className="rerun-button" onClick={confirmName}>
+            {t.declSaveLabel}
+          </button>
+          <button
+            className="link-button"
+            onClick={() => {
+              setNaming(false);
+              setNameError(null);
+            }}
+          >
+            {t.closeLabel}
+          </button>
+        </div>
+      ) : null}
+      {nameError ? <div className="error">{nameError}</div> : null}
+      {error ? <div className="error">{error}</div> : null}
+    </div>
+  );
+}
+
 function Dashboard({
   lang,
   theme,
@@ -191,18 +462,23 @@ function Dashboard({
 }) {
   const t = useMessages();
   const [screen, setScreen] = useState<Screen>("overview");
-  const [chosenType, setChosenType] = useState<string>("");
+  const [declaration, setDeclaration] = useState<Declaration>({ caseType: "" });
+  const [note, setNote] = useState("");
+  const [selectedView, setSelectedView] = useState<string | null>(null);
+  const [views, setViews] = useState<DeclarationSetView[]>([]);
+  const [recipes, setRecipes] = useState<string[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [viewError, setViewError] = useState<string | null>(null);
   const [caseFilter, setCaseFilter] = useState<CaseFilter | null>(null);
-  const [range, setRange] = useState<Range | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [page, setPage] = useState<EventsPage | null>(null);
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async (at: number, r: Range | null) => {
+  const refresh = useCallback(async (at: number, d: Declaration) => {
     try {
-      const [s, p] = await Promise.all([fetchSummary(r), fetchEvents(at, PAGE_SIZE, r)]);
+      const [s, p] = await Promise.all([fetchSummary(d), fetchEvents(at, PAGE_SIZE, d)]);
       setSummary(s);
       setPage(p);
       setError(null);
@@ -211,13 +487,31 @@ function Dashboard({
     }
   }, []);
 
+  const fileName = summary ? (summary.path.split("/").pop() ?? summary.path) : "";
+  const slots = useMemo(() => typeSlots(summary?.objectTypes ?? []), [summary]);
+  const preferred = summary
+    ? (caseLikeType(summary.typeStats, summary.eventTypes.length) ?? "")
+    : "";
+  // The heuristic only proposes a starting point: a declared case type wins
+  // whenever the loaded log still has that type.
+  const objectType =
+    summary &&
+    declaration.caseType !== "" &&
+    summary.objectTypes.some((ty) => ty.name === declaration.caseType)
+      ? declaration.caseType
+      : preferred;
+  const resolved = useMemo<Declaration>(
+    () => ({ ...declaration, caseType: objectType }),
+    [declaration, objectType],
+  );
+
   const loaded = status?.loaded === true;
 
   useEffect(() => {
     if (loaded) {
-      void refresh(offset, range);
+      void refresh(offset, resolved);
     }
-  }, [loaded, refresh, offset, range]);
+  }, [loaded, refresh, offset, resolved]);
 
   useEffect(() => {
     const check = () => {
@@ -226,7 +520,7 @@ function Dashboard({
           setStatus(next);
           if (next.loaded && summary && next.modified !== summary.modified) {
             clearApiCache();
-            void refresh(offset, range);
+            void refresh(offset, resolved);
           }
         })
         .catch(() => setError(t.serverUnreachable));
@@ -234,17 +528,140 @@ function Dashboard({
     check();
     const timer = setInterval(check, POLL_MS);
     return () => clearInterval(timer);
-  }, [summary, offset, range, refresh, t]);
+  }, [summary, offset, resolved, refresh, t]);
 
-  const fileName = summary ? (summary.path.split("/").pop() ?? summary.path) : "";
-  const slots = useMemo(() => typeSlots(summary?.objectTypes ?? []), [summary]);
-  const preferred = summary
-    ? (caseLikeType(summary.typeStats, summary.eventTypes.length) ?? "")
-    : "";
-  const objectType =
-    summary && chosenType !== "" && summary.objectTypes.some((ty) => ty.name === chosenType)
-      ? chosenType
-      : preferred;
+  const applySet = useCallback((set: DeclarationSet) => {
+    setDeclaration({
+      caseType: set.caseType,
+      recipe: set.recipe,
+      via: set.via,
+      notVia: set.notVia,
+      period: set.period
+        ? { from: set.period.from ?? "", to: set.period.to ?? "" }
+        : null,
+    });
+    setNote(set.note ?? "");
+    setSelectedView(set.name);
+    setCaseFilter(null);
+  }, []);
+
+  useEffect(() => {
+    fetchViews()
+      .then((list) => {
+        setViews(list);
+        const stored = loadViewName();
+        if (stored === null) {
+          return;
+        }
+        const found = list.find((v) => v.name === stored);
+        if (found) {
+          applySet(found);
+        } else {
+          saveViewName(null);
+        }
+      })
+      .catch((err) => setViewError(err instanceof Error ? err.message : String(err)));
+    fetchRecipes()
+      .then((list) => setRecipes(list.map((recipe) => recipe.name)))
+      .catch((err) => setViewError(err instanceof Error ? err.message : String(err)));
+  }, [applySet]);
+
+  // Any edit lands in the unnamed declaration until it is saved under a name.
+  const editDeclaration = (next: Declaration) => {
+    setDeclaration(next);
+    setSelectedView(null);
+    saveViewName(null);
+    setCaseFilter(null);
+  };
+
+  const editNote = (next: string) => {
+    setNote(next);
+    setSelectedView(null);
+    saveViewName(null);
+  };
+
+  const selectView = (name: string | null) => {
+    setViewError(null);
+    if (name === null) {
+      setSelectedView(null);
+      saveViewName(null);
+      return;
+    }
+    const set = views.find((v) => v.name === name);
+    if (set) {
+      applySet(set);
+      saveViewName(name);
+    }
+  };
+
+  const storeView = (name: string) => {
+    const period = declaration.period;
+    const set: DeclarationSet = {
+      name,
+      caseType: objectType,
+      ...(status?.path ? { baseLog: status.path } : {}),
+      ...(declaration.recipe ? { recipe: declaration.recipe } : {}),
+      ...(declaration.via && declaration.via.length > 0 ? { via: declaration.via } : {}),
+      ...(declaration.notVia && declaration.notVia.length > 0
+        ? { notVia: declaration.notVia }
+        : {}),
+      ...(period && (period.from !== "" || period.to !== "")
+        ? {
+            period: {
+              ...(period.from !== "" ? { from: period.from } : {}),
+              ...(period.to !== "" ? { to: period.to } : {}),
+            },
+          }
+        : {}),
+      ...(note.trim() !== "" ? { note: note.trim() } : {}),
+    };
+    saveView(set)
+      .then((list) => {
+        setViews(list);
+        setSelectedView(name);
+        saveViewName(name);
+        setViewError(null);
+      })
+      .catch((err) => setViewError(err instanceof Error ? err.message : String(err)));
+  };
+
+  const removeView = () => {
+    if (selectedView === null) {
+      return;
+    }
+    deleteView(selectedView)
+      .then((list) => {
+        setViews(list);
+        setSelectedView(null);
+        saveViewName(null);
+        setViewError(null);
+      })
+      .catch((err) => setViewError(err instanceof Error ? err.message : String(err)));
+  };
+
+  const openBaseLog = (name: string) => {
+    openLog(name)
+      .then((next) => {
+        clearApiCache();
+        setStatus(next);
+        setCaseFilter(null);
+        setOffset(0);
+      })
+      .catch((err) => setViewError(err instanceof Error ? err.message : String(err)));
+  };
+
+  const activeSet = views.find((v) => v.name === selectedView) ?? null;
+  const declSummary = [
+    objectType,
+    declaration.recipe,
+    declaration.via && declaration.via.length > 0 ? `via ${declaration.via.join(",")}` : null,
+    declaration.notVia && declaration.notVia.length > 0
+      ? `notVia ${declaration.notVia.join(",")}`
+      : null,
+    declaration.period ? `${declaration.period.from || "…"}–${declaration.period.to || "…"}` : null,
+  ]
+    .filter((part) => part !== null && part !== undefined && part !== "")
+    .join(" · ");
 
   const nav: ({ key: Screen; label: string } | { header: string })[] = [
     { key: "overview", label: t.navOverview },
@@ -274,37 +691,27 @@ function Dashboard({
             </button>
             <select
               className="header-select"
-              title={t.objectTypeLabel}
-              value={objectType}
-              onChange={(e) => {
-                setChosenType(e.target.value);
-                setCaseFilter(null);
-              }}
+              title={t.declViewLabel}
+              value={selectedView ?? ""}
+              onChange={(e) => selectView(e.target.value === "" ? null : e.target.value)}
             >
-              {summary.objectTypes.map((ty) => (
-                <option key={ty.name} value={ty.name}>
-                  {ty.name} ({ty.count.toLocaleString()})
+              <option value="">{t.declUnnamed}</option>
+              {views.map((view) => (
+                <option key={view.name} value={view.name}>
+                  {view.name}
                 </option>
               ))}
             </select>
-            <span className="header-range" title={`${t.rangeTitle} — ${t.rangeNote}`}>
-              <input
-                type="date"
-                value={range?.from ?? ""}
-                onChange={(e) => setRange({ from: e.target.value, to: range?.to ?? "" })}
-              />
-              <span className="muted">–</span>
-              <input
-                type="date"
-                value={range?.to ?? ""}
-                onChange={(e) => setRange({ from: range?.from ?? "", to: e.target.value })}
-              />
-              {range ? (
-                <button className="link-button" onClick={() => setRange(null)}>
-                  ✕
-                </button>
-              ) : null}
+            <span className="decl-summary" title={t.declBarTitle}>
+              {declSummary}
             </span>
+            <button
+              title={t.declBarTitle}
+              className={editing ? "toggle-on" : undefined}
+              onClick={() => setEditing(!editing)}
+            >
+              {t.declEditLabel}
+            </button>
           </>
         ) : null}
         <span className="controls">
@@ -323,6 +730,24 @@ function Dashboard({
           </button>
         </span>
       </header>
+      {summary && editing ? (
+        <DeclarationBar
+          objectTypes={summary.objectTypes}
+          caseType={objectType}
+          declaration={declaration}
+          note={note}
+          recipes={recipes}
+          viewName={selectedView}
+          baseLog={activeSet?.baseLog ?? null}
+          logPath={status?.path ?? null}
+          error={viewError}
+          onChange={editDeclaration}
+          onNote={editNote}
+          onSave={storeView}
+          onDelete={removeView}
+          onOpenBaseLog={openBaseLog}
+        />
+      ) : null}
       {error ? <div className="error">{error}</div> : null}
       {summary && page ? (
         <div className="shell">
@@ -374,7 +799,12 @@ function Dashboard({
                   <span className="meta-updated">{t.updated(formatTime(summary.modified, lang))}</span>
                 </p>
                 {objectType !== "" ? (
-                  <Insights objectType={objectType} range={range} modified={summary.modified} onNavigate={setScreen} />
+                  <Insights
+                    objectType={objectType}
+                    declaration={resolved}
+                    modified={summary.modified}
+                    onNavigate={setScreen}
+                  />
                 ) : null}
                 {summary.violations.length > 0 ? (
                   <details className="panel violations">
@@ -397,11 +827,11 @@ function Dashboard({
                 objectType={objectType}
                 objectTypes={summary.objectTypes}
                 slots={slots}
-                range={range}
+                declaration={resolved}
                 modified={summary.modified}
                 onShowCases={(from, to, forType) => {
                   if (forType !== objectType) {
-                    setChosenType(forType);
+                    editDeclaration({ ...declaration, caseType: forType });
                   }
                   setCaseFilter({ kind: "edge", from, to });
                   setScreen("cases");
@@ -411,7 +841,7 @@ function Dashboard({
             {screen === "paths" && objectType !== "" ? (
               <VariantsPanel
                 objectType={objectType}
-                range={range}
+                declaration={resolved}
                 modified={summary.modified}
                 onShowCases={(activities) => {
                   setCaseFilter({ kind: "variant", activities });
@@ -422,7 +852,7 @@ function Dashboard({
             {screen === "cases" && objectType !== "" ? (
               <CasesPanel
                 objectType={objectType}
-                range={range}
+                declaration={resolved}
                 modified={summary.modified}
                 lang={lang}
                 filter={caseFilter}
@@ -432,7 +862,8 @@ function Dashboard({
             {screen === "model" && objectType !== "" ? (
               <ModelPanel
                 objectType={objectType}
-                range={range}
+                declaration={resolved}
+                viewName={selectedView}
                 modified={summary.modified}
                 onShowCases={(activities) => {
                   setCaseFilter({ kind: "variant", activities });
@@ -442,11 +873,11 @@ function Dashboard({
             ) : null}
             {screen === "conformance" ? (
               <ConformancePanel
-                range={range}
+                declaration={resolved}
                 lang={lang}
                 onShowCases={(forType, activities) => {
                   if (forType !== objectType) {
-                    setChosenType(forType);
+                    editDeclaration({ ...declaration, caseType: forType });
                   }
                   setCaseFilter({ kind: "variant", activities });
                   setScreen("cases");
@@ -460,12 +891,10 @@ function Dashboard({
                 modified={summary.modified}
                 onOpened={() => {
                   clearApiCache();
-                  setChosenType("");
                   setCaseFilter(null);
-                  setRange(null);
                   setOffset(0);
                   setScreen("overview");
-                  void refresh(0, null);
+                  void refresh(0, resolved);
                 }}
               />
             ) : null}
