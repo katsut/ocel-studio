@@ -8,6 +8,7 @@ mod analysis;
 mod models;
 mod recipes;
 mod sources;
+mod views;
 mod workspace;
 
 use std::collections::HashMap;
@@ -31,6 +32,7 @@ use sources::{
     load_history, load_sources, runs_list, secret_delete, secret_set, sources_delete, sources_list,
     sources_run, sources_upsert, RunRecord, RunState, SourceConfig,
 };
+use views::{views_delete, views_list, views_upsert};
 use workspace::{logs, logs_by_recency, open_log, sample, status};
 
 #[derive(RustEmbed)]
@@ -142,6 +144,8 @@ pub async fn run(
         .route("/api/recipes", get(recipes_list).post(recipes_upsert))
         .route("/api/recipes/{name}", delete(recipes_delete))
         .route("/api/transform/preview", post(transform_preview))
+        .route("/api/views", get(views_list).post(views_upsert))
+        .route("/api/views/{name}", delete(views_delete))
         .route("/api/models", get(models_list).post(models_register))
         .route("/api/models/{name}", delete(models_delete))
         .route("/api/conformance", get(conformance))

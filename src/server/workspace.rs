@@ -62,6 +62,15 @@ pub(super) struct Status {
     modified: Option<DateTime<Utc>>,
     /// Where the sample would be saved — shown in the empty state.
     data_dir: String,
+    /// File name of the loaded log, matched against a declaration set's
+    /// `baseLog`.
+    path: Option<String>,
+}
+
+fn file_name(path: &Path) -> Option<String> {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .map(ToOwned::to_owned)
 }
 
 #[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
@@ -72,6 +81,7 @@ pub(super) async fn status(State(state): State<Arc<AppState>>) -> Result<Json<St
             loaded: false,
             modified: None,
             data_dir,
+            path: None,
         }));
     };
     let modified = std::fs::metadata(&path)
@@ -81,6 +91,7 @@ pub(super) async fn status(State(state): State<Arc<AppState>>) -> Result<Json<St
         loaded: true,
         modified: Some(modified.into()),
         data_dir,
+        path: file_name(&path),
     }))
 }
 
@@ -111,6 +122,7 @@ pub(super) async fn sample(State(state): State<Arc<AppState>>) -> Result<Json<St
         loaded: true,
         modified: Some(modified.into()),
         data_dir: state.data_dir.display().to_string(),
+        path: file_name(&target),
     }))
 }
 
@@ -212,5 +224,6 @@ pub(super) async fn open_log(
         loaded: true,
         modified: Some(modified.into()),
         data_dir: state.data_dir.display().to_string(),
+        path: file_name(&path),
     }))
 }
