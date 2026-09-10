@@ -1408,9 +1408,9 @@ dependencies = [
 
 [[package]]
 name = "ocel-transform"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eed645f8cb6762efc4945327fe7d1dd9f4e85cad2c4e92ff1b555d57e24949d8"
+checksum = "74f590874c0b3816b333426e4d2ec031204ff92cf86f5a3e81ea752471f81d40"
 dependencies = [
  "chrono",
  "clap",

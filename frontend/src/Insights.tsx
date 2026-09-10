@@ -3,9 +3,9 @@ import {
   fetchDfg,
   fetchLeadTimes,
   fetchVariants,
+  type Declaration,
   type Dfg,
   type LeadTimeReport,
-  type Range,
   type VariantsResponse,
 } from "./api.ts";
 import { useMessages } from "./i18n.tsx";
@@ -28,12 +28,12 @@ function shortPath(activities: string[]): string {
 
 export default function Insights({
   objectType,
-  range,
+  declaration,
   modified,
   onNavigate,
 }: {
   objectType: string;
-  range: Range | null;
+  declaration: Declaration;
   modified: string;
   onNavigate: (screen: Screen) => void;
 }) {
@@ -45,21 +45,22 @@ export default function Insights({
 
   useEffect(() => {
     Promise.all([
-      fetchVariants(objectType, range, 1),
-      fetchDfg(objectType, range),
-      fetchLeadTimes(objectType, range),
+      fetchVariants(declaration, 1),
+      fetchDfg(declaration),
+      fetchLeadTimes(declaration),
     ])
       .then(([v, d, l]) => {
         setVariants(v);
         setDfg(d);
         setLeads(l);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn("insight cards unavailable", err);
         setVariants(null);
         setDfg(null);
         setLeads(null);
       });
-  }, [objectType, range, modified]);
+  }, [objectType, declaration, modified]);
 
   if (
     !variants ||

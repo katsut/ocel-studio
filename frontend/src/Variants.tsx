@@ -2,20 +2,20 @@ import { useEffect, useState } from "react";
 import {
   fetchLeadTimes,
   fetchVariants,
+  type Declaration,
   type LeadTimeReport,
-  type Range,
   type VariantsResponse,
 } from "./api.ts";
 import { useMessages } from "./i18n.tsx";
 
 export default function VariantsPanel({
   objectType,
-  range,
+  declaration,
   modified,
   onShowCases,
 }: {
   objectType: string;
-  range: Range | null;
+  declaration: Declaration;
   modified: string;
   onShowCases: (activities: string[]) => void;
 }) {
@@ -29,14 +29,14 @@ export default function VariantsPanel({
     if (objectType === "") {
       return;
     }
-    Promise.all([fetchVariants(objectType, range), fetchLeadTimes(objectType, range)])
+    Promise.all([fetchVariants(declaration), fetchLeadTimes(declaration)])
       .then(([r, l]) => {
         setReport(r);
         setLeads(l);
         setError(null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [objectType, range, modified]);
+  }, [objectType, declaration, modified]);
 
     return (
     <div className="panel">

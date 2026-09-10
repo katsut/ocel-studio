@@ -50,6 +50,20 @@ fn recipe_views(config_dir: &Path) -> Vec<RecipeView> {
     views
 }
 
+/// Read one stored recipe by name, for a declaration that names it.
+pub(super) fn load_recipe(
+    config_dir: &Path,
+    name: &str,
+) -> Result<ocel_transform::Recipe, ApiError> {
+    if !valid_source_name(name) {
+        return Err((StatusCode::BAD_REQUEST, "not a recipe name".to_owned()));
+    }
+    let path = recipes_dir(config_dir).join(format!("{name}.json"));
+    let raw = std::fs::read_to_string(&path)
+        .map_err(|_| (StatusCode::NOT_FOUND, format!("no such recipe: {name}")))?;
+    serde_json::from_str(&raw).map_err(|e| internal(&e))
+}
+
 #[allow(clippy::needless_pass_by_value)] // axum handlers take extractors by value
 pub(super) async fn recipes_list(State(state): State<Arc<AppState>>) -> Json<Vec<RecipeView>> {
     Json(recipe_views(&state.config_dir))
@@ -101,8 +115,13 @@ pub(super) async fn transform_preview(
     let guard = state.loaded.read().await;
     let loaded = guard.as_ref().ok_or_else(no_log)?;
     let log = loaded.log.clone();
+    let base_dir = loaded
+        .path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
     drop(guard);
-    let (result, steps) = ocel_transform::preview(&recipe, log, PREVIEW_SAMPLE)
+    let (result, steps) = ocel_transform::preview(&recipe, log, &base_dir, PREVIEW_SAMPLE)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     Ok(Json(TransformPreview {
         steps,
