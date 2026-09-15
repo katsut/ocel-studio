@@ -40,19 +40,19 @@ pub(super) struct ViewQuery {
 }
 
 impl ViewQuery {
-    fn required_type(&self) -> Result<&str, ApiError> {
+    pub(super) fn required_type(&self) -> Result<&str, ApiError> {
         self.object_type
             .as_deref()
             .filter(|t| !t.is_empty())
             .ok_or_else(|| (StatusCode::BAD_REQUEST, "type is required".to_owned()))
     }
 
-    fn window<'a>(&self, log: &'a ocel::Ocel) -> Result<Cow<'a, ocel::Ocel>, ApiError> {
+    pub(super) fn window<'a>(&self, log: &'a ocel::Ocel) -> Result<Cow<'a, ocel::Ocel>, ApiError> {
         window(log, self.from.as_deref(), self.to.as_deref())
     }
 }
 
-fn split_types(raw: Option<&str>) -> Vec<String> {
+pub(super) fn split_types(raw: Option<&str>) -> Vec<String> {
     raw.unwrap_or_default()
         .split(',')
         .map(str::trim)

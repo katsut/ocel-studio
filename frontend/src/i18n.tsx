@@ -237,6 +237,16 @@ export interface Messages {
   predEventType: string;
   predAttr: string;
   predMatches: string;
+  verifyConvergenceTitle: string;
+  verifyDivergenceTitle: string;
+  verifyConnectivityTitle: string;
+  verifyConvergenceSentence: (type: string, activity: string, mean: string) => string;
+  verifyConvergenceSentenceWhole: (type: string, mean: string) => string;
+  verifyDivergenceSentence: (share: string) => string;
+  verifyDivergenceSentenceWorst: (activity: string) => string;
+  verifyConnectivitySentence: (components: string, pct: string) => string;
+  verifyConnectivityCollapsed: string;
+  verifyWalkTypes: (types: string) => string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -533,6 +543,20 @@ export const MESSAGES: Record<Lang, Messages> = {
     predEventType: "event type",
     predAttr: "attribute",
     predMatches: "regex the value must match",
+    verifyConvergenceTitle: "Convergence",
+    verifyDivergenceTitle: "Divergence",
+    verifyConnectivityTitle: "Connectivity",
+    verifyConvergenceSentence: (type, activity, mean) =>
+      `Bundling by ${type} makes ${activity} look ${mean}× bigger than it is.`,
+    verifyConvergenceSentenceWhole: (type, mean) =>
+      `Bundling by ${type} makes activities look ${mean}× bigger on average than they are.`,
+    verifyDivergenceSentence: (share) => `${share} of cases repeat the same activity.`,
+    verifyDivergenceSentenceWorst: (activity) => `Most often it's ${activity}.`,
+    verifyConnectivitySentence: (components, pct) =>
+      `The log splits into ${components} clusters — the biggest holds ${pct} of cases.`,
+    verifyConnectivityCollapsed:
+      "Every case is connected into one single cluster. Narrow down “passing through” to make this type work as a case unit.",
+    verifyWalkTypes: (types) => `Walkable types: ${types}`,
   },
   ja: {
     events: "イベント",
@@ -828,6 +852,20 @@ export const MESSAGES: Record<Lang, Messages> = {
     predEventType: "イベント型",
     predAttr: "属性名",
     predMatches: "値が一致すべき正規表現",
+    verifyConvergenceTitle: "収束",
+    verifyDivergenceTitle: "発散",
+    verifyConnectivityTitle: "全連結",
+    verifyConvergenceSentence: (type, activity, mean) =>
+      `${type} で束ねると ${activity} が ${mean} 倍に見えます。`,
+    verifyConvergenceSentenceWhole: (type, mean) =>
+      `${type} で束ねると活動が平均 ${mean} 倍に見えます。`,
+    verifyDivergenceSentence: (share) => `${share} のケースで同じ活動が繰り返します。`,
+    verifyDivergenceSentenceWorst: (activity) => `最多は ${activity} です。`,
+    verifyConnectivitySentence: (components, pct) =>
+      `${components} の塊に分かれます。最大の塊に ${pct} のケースが入ります。`,
+    verifyConnectivityCollapsed:
+      "全部のケースが1つの塊に繋がっています。経由を絞ってください。",
+    verifyWalkTypes: (types) => `歩ける型: ${types}`,
   },
 };
 

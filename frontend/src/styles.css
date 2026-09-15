@@ -640,6 +640,44 @@ main {
   }
 }
 
+.verify-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.verify-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+  padding: 10px 14px;
+}
+
+.verify-figure {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.verify-tile p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.verify-warn {
+  border-left: 3px solid var(--status-warning);
+}
+
+.verify-serious {
+  border-left: 3px solid var(--status-serious);
+}
+
+.verify-loading {
+  opacity: 0.5;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);

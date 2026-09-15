@@ -334,6 +334,42 @@ export type ModelResult =
   | { algo: "alpha"; net: PetriNet; replay: ReplayReport; precision: PrecisionReport }
   | { algo: "heuristics"; net: HeuristicsNet };
 
+export interface Convergence {
+  linkedEvents: number;
+  flattenedEvents: number;
+  mean: number;
+  max: number;
+  worstActivity: { name: string; mean: number } | null;
+}
+
+export interface Divergence {
+  cases: number;
+  withRepeat: number;
+  share: number;
+  meanMaxRepeat: number;
+  maxRepeat: number;
+  worstActivity: { name: string; share: number } | null;
+}
+
+export interface Connectivity {
+  walkTypes: string[];
+  caseObjects: number;
+  components: number;
+  largestCases: number;
+  largestShare: number;
+  collapsed: boolean;
+}
+
+export interface Verification {
+  caseType: string;
+  convergence: Convergence;
+  divergence: Divergence;
+  connectivity: Connectivity;
+}
+
+export const fetchVerify = (declaration: Declaration) =>
+  get<Verification>(`/api/verify?_=1${declarationParams(declaration)}`);
+
 export const fetchSummary = (declaration: Declaration) =>
   get<Summary>(`/api/summary?_=1${declarationParams(declaration)}`);
 

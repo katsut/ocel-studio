@@ -8,6 +8,7 @@ mod analysis;
 mod models;
 mod recipes;
 mod sources;
+mod verify;
 mod views;
 mod workspace;
 
@@ -34,6 +35,7 @@ use sources::{
     load_history, load_sources, runs_list, secret_delete, secret_set, sources_delete, sources_list,
     sources_run, sources_upsert, RunRecord, RunState, SourceConfig,
 };
+use verify::verify;
 use views::{views_delete, views_list, views_upsert};
 use workspace::{logs, logs_by_recency, open_log, sample, status};
 
@@ -176,6 +178,7 @@ pub async fn run(
         .route("/api/models", get(models_list).post(models_register))
         .route("/api/models/{name}", delete(models_delete))
         .route("/api/conformance", get(conformance))
+        .route("/api/verify", get(verify))
         .fallback(get(asset))
         .with_state(state);
 
