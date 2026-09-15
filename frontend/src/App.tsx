@@ -8,6 +8,7 @@ import {
   fetchSample,
   fetchStatus,
   fetchSummary,
+  fetchVerify,
   fetchViews,
   openLog,
   saveView,
@@ -21,6 +22,7 @@ import {
   type Status,
   type Summary,
   type TypeCount,
+  type Verification,
 } from "./api.ts";
 import Insights from "./Insights.tsx";
 import { I18nProvider, MESSAGES, useMessages, type Lang } from "./i18n.tsx";
@@ -193,6 +195,79 @@ function viaMode(declaration: Declaration): ViaMode {
   return declaration.notVia !== undefined ? "notVia" : "any";
 }
 
+function VerifyStrip({
+  caseType,
+  verification,
+  verifyError,
+  loading,
+}: {
+  caseType: string;
+  verification: Verification | null;
+  verifyError: string | null;
+  loading: boolean;
+}) {
+  const t = useMessages();
+  const conv = verification?.convergence ?? null;
+  const div = verification?.divergence ?? null;
+  const conn = verification?.connectivity ?? null;
+
+  const convSentence =
+    conv === null
+      ? null
+      : conv.worstActivity !== null
+        ? t.verifyConvergenceSentence(caseType, conv.worstActivity.name, conv.worstActivity.mean.toFixed(1))
+        : t.verifyConvergenceSentenceWhole(caseType, conv.mean.toFixed(1));
+
+  const divSentence = div === null ? null : t.verifyDivergenceSentence(`${Math.round(div.share * 100)}%`);
+  const divWorstSentence =
+    div?.worstActivity !== null && div?.worstActivity !== undefined
+      ? t.verifyDivergenceSentenceWorst(div.worstActivity.name)
+      : null;
+
+  const connSentence =
+    conn === null
+      ? null
+      : conn.collapsed
+        ? t.verifyConnectivityCollapsed
+        : t.verifyConnectivitySentence(
+            conn.components.toLocaleString(),
+            `${Math.round(conn.largestShare * 100)}%`,
+          );
+
+  return (
+    <>
+    <div className={loading ? "verify-strip verify-loading" : "verify-strip"}>
+      <div className={conv !== null && conv.mean >= 1.5 ? "verify-tile verify-warn" : "verify-tile"}>
+        <h3>{t.verifyConvergenceTitle}</h3>
+        <div className="verify-figure">{conv !== null ? `×${conv.mean.toFixed(1)}` : "…"}</div>
+        {convSentence !== null ? <p>{convSentence}</p> : <p>…</p>}
+      </div>
+      <div className={div !== null && div.share >= 0.3 ? "verify-tile verify-warn" : "verify-tile"}>
+        <h3>{t.verifyDivergenceTitle}</h3>
+        <div className="verify-figure">{div !== null ? `${Math.round(div.share * 100)}%` : "…"}</div>
+        {divSentence !== null ? <p>{divSentence}</p> : <p>…</p>}
+        {divWorstSentence !== null ? <p>{divWorstSentence}</p> : null}
+      </div>
+      <div
+        className={
+          conn !== null && conn.collapsed
+            ? "verify-tile verify-serious"
+            : conn !== null && conn.largestShare >= 0.5
+              ? "verify-tile verify-warn"
+              : "verify-tile"
+        }
+      >
+        <h3>{t.verifyConnectivityTitle}</h3>
+        <div className="verify-figure">{conn !== null ? conn.components.toLocaleString() : "…"}</div>
+        {connSentence !== null ? <p>{connSentence}</p> : <p>…</p>}
+        {conn !== null ? <p className="muted">{t.verifyWalkTypes(conn.walkTypes.join(", "))}</p> : null}
+      </div>
+    </div>
+    {verifyError ? <div className="error">{verifyError}</div> : null}
+    </>
+  );
+}
+
 function DeclarationBar({
   objectTypes,
   caseType,
@@ -203,6 +278,9 @@ function DeclarationBar({
   baseLog,
   logPath,
   error,
+  verification,
+  verifyError,
+  verifyLoading,
   onChange,
   onNote,
   onSave,
@@ -218,6 +296,9 @@ function DeclarationBar({
   baseLog: string | null;
   logPath: string | null;
   error: string | null;
+  verification: Verification | null;
+  verifyError: string | null;
+  verifyLoading: boolean;
   onChange: (next: Declaration) => void;
   onNote: (next: string) => void;
   onSave: (name: string) => void;
@@ -380,6 +461,12 @@ function DeclarationBar({
         )}
       </div>
       <p className="muted guide">{mode === "notVia" ? t.declNotViaHint : t.declViaHint}</p>
+      <VerifyStrip
+        caseType={caseType}
+        verification={verification}
+        verifyError={verifyError}
+        loading={verifyLoading}
+      />
       <div className="decl-row">
         <input
           className="decl-note"
@@ -475,6 +562,9 @@ function Dashboard({
   const [page, setPage] = useState<EventsPage | null>(null);
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [verification, setVerification] = useState<Verification | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifyLoading, setVerifyLoading] = useState(false);
 
   const refresh = useCallback(async (at: number, d: Declaration) => {
     try {
@@ -512,6 +602,36 @@ function Dashboard({
       void refresh(offset, resolved);
     }
   }, [loaded, refresh, offset, resolved]);
+
+  useEffect(() => {
+    if (!loaded || resolved.caseType === "") {
+      return;
+    }
+    let active = true;
+    setVerifyLoading(true);
+    fetchVerify(resolved)
+      .then((v) => {
+        if (!active) {
+          return;
+        }
+        setVerification(v);
+        setVerifyError(null);
+      })
+      .catch((err) => {
+        if (!active) {
+          return;
+        }
+        setVerifyError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (active) {
+          setVerifyLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [loaded, resolved, summary?.modified]);
 
   useEffect(() => {
     const check = () => {
@@ -741,6 +861,9 @@ function Dashboard({
           baseLog={activeSet?.baseLog ?? null}
           logPath={status?.path ?? null}
           error={viewError}
+          verification={verification}
+          verifyError={verifyError}
+          verifyLoading={verifyLoading}
           onChange={editDeclaration}
           onNote={editNote}
           onSave={storeView}
