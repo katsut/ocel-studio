@@ -9,6 +9,9 @@ type StepKind =
   | "timeWindow"
   | "keepObjectTypes"
   | "mapObjectIds"
+  | "union"
+  | "keepRelatedTo"
+  | "liftEvents"
   | "dropObjectsWithoutEvents";
 
 const STEP_KINDS: StepKind[] = [
@@ -19,6 +22,9 @@ const STEP_KINDS: StepKind[] = [
   "timeWindow",
   "keepObjectTypes",
   "mapObjectIds",
+  "union",
+  "keepRelatedTo",
+  "liftEvents",
   "dropObjectsWithoutEvents",
 ];
 
@@ -45,6 +51,12 @@ export function emptyStep(kind: StepKind): RecipeStep {
       return { keepObjectTypes: [] };
     case "mapObjectIds":
       return { mapObjectIds: { aliases: {} } };
+    case "union":
+      return { union: { file: "" } };
+    case "keepRelatedTo":
+      return { keepRelatedTo: { objectType: "", via: [] } };
+    case "liftEvents":
+      return { liftEvents: { from: "", to: "", eventTypes: [] } };
     case "dropObjectsWithoutEvents":
       return "dropObjectsWithoutEvents";
   }
@@ -175,6 +187,96 @@ export function StepEditor({
             </>
           );
         })()
+      ) : kind === "union" ? (
+        <input
+          type="text"
+          className="step-wide"
+          placeholder={t.stepUnionFilePlaceholder}
+          defaultValue={(step as { union: { file: string } }).union.file}
+          onBlur={(e) => onChange({ union: { file: e.target.value } })}
+        />
+      ) : kind === "keepRelatedTo" ? (
+        (() => {
+          const r = (step as {
+            keepRelatedTo: { objectType: string; via?: string[]; notVia?: string[] };
+          }).keepRelatedTo;
+          const mode: "via" | "notVia" = r.notVia !== undefined ? "notVia" : "via";
+          const list = (mode === "via" ? r.via : r.notVia) ?? [];
+          return (
+            <>
+              <input
+                type="text"
+                placeholder={t.stepObjectTypePlaceholder}
+                defaultValue={r.objectType}
+                onBlur={(e) => onChange({ keepRelatedTo: { ...r, objectType: e.target.value } })}
+              />
+              <select
+                value={mode}
+                onChange={(e) => {
+                  const next = e.target.value as "via" | "notVia";
+                  const { via, notVia, ...rest } = r;
+                  const current = mode === "via" ? via : notVia;
+                  onChange({
+                    keepRelatedTo: { ...rest, [next]: current ?? [] },
+                  } as RecipeStep);
+                }}
+              >
+                <option value="via">{t.stepViaLabel}</option>
+                <option value="notVia">{t.stepNotViaLabel}</option>
+              </select>
+              <input
+                type="text"
+                className="step-wide"
+                placeholder={t.stepTypesPlaceholder}
+                defaultValue={list.join(", ")}
+                onBlur={(e) =>
+                  onChange({ keepRelatedTo: { ...r, [mode]: splitList(e.target.value) } })
+                }
+              />
+            </>
+          );
+        })()
+      ) : kind === "liftEvents" ? (
+        (() => {
+          const l = (step as {
+            liftEvents: { from: string; to: string; eventTypes: string[]; qualifier?: string };
+          }).liftEvents;
+          return (
+            <>
+              <input
+                type="text"
+                placeholder={t.stepLiftFromPlaceholder}
+                defaultValue={l.from}
+                onBlur={(e) => onChange({ liftEvents: { ...l, from: e.target.value } })}
+              />
+              <input
+                type="text"
+                placeholder={t.stepLiftToPlaceholder}
+                defaultValue={l.to}
+                onBlur={(e) => onChange({ liftEvents: { ...l, to: e.target.value } })}
+              />
+              <input
+                type="text"
+                className="step-wide"
+                placeholder={t.stepTypesPlaceholder}
+                defaultValue={l.eventTypes.join(", ")}
+                onBlur={(e) =>
+                  onChange({ liftEvents: { ...l, eventTypes: splitList(e.target.value) } })
+                }
+              />
+              <input
+                type="text"
+                placeholder={t.stepLiftQualifierPlaceholder}
+                defaultValue={l.qualifier ?? ""}
+                onBlur={(e) =>
+                  onChange({
+                    liftEvents: { ...l, qualifier: e.target.value === "" ? undefined : e.target.value },
+                  })
+                }
+              />
+            </>
+          );
+        })()
       ) : null}
       <button className="link-button" onClick={onRemove}>
         ×
@@ -197,6 +299,19 @@ export function stepSummary(step: RecipeStep): string {
   }
   if (kind === "mapObjectIds") {
     return `${kind} (${Object.keys((value as { aliases: object }).aliases).length})`;
+  }
+  if (kind === "union") {
+    return `${kind} (${(value as { file: string }).file})`;
+  }
+  if (kind === "keepRelatedTo") {
+    const r = value as { objectType: string; via?: string[]; notVia?: string[] };
+    const mode = r.notVia !== undefined ? "notVia" : "via";
+    const list = (mode === "via" ? r.via : r.notVia) ?? [];
+    return `${kind} (${r.objectType} ${mode} ${list.length})`;
+  }
+  if (kind === "liftEvents") {
+    const l = value as { from: string; to: string; eventTypes: string[] };
+    return `${kind} (${l.from}→${l.to}, ${l.eventTypes.length})`;
   }
   return kind;
 }
