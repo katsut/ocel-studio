@@ -234,6 +234,13 @@ export interface Messages {
   stepTypesPlaceholder: string;
   stepRenamePlaceholder: string;
   stepAliasPlaceholder: string;
+  stepObjectTypePlaceholder: string;
+  stepViaLabel: string;
+  stepNotViaLabel: string;
+  stepUnionFilePlaceholder: string;
+  stepLiftFromPlaceholder: string;
+  stepLiftToPlaceholder: string;
+  stepLiftQualifierPlaceholder: string;
   predEventType: string;
   predAttr: string;
   predMatches: string;
@@ -535,11 +542,21 @@ export const MESSAGES: Record<Lang, Messages> = {
       timeWindow: "Time window",
       keepObjectTypes: "Keep only object types",
       mapObjectIds: "Merge object ids (alias table)",
+      union: "Merge in another log",
+      keepRelatedTo: "Keep only what's reachable from a type",
+      liftEvents: "Lift events to a linked type",
       dropObjectsWithoutEvents: "Drop objects without events",
     },
     stepTypesPlaceholder: "type names, comma separated",
     stepRenamePlaceholder: "old=new, comma separated",
     stepAliasPlaceholder: "alias=canonical id, comma separated",
+    stepObjectTypePlaceholder: "seed object type",
+    stepViaLabel: "via (walk only through these types)",
+    stepNotViaLabel: "not via (walk stops at these types)",
+    stepUnionFilePlaceholder: "path to an OCEL file, relative to the log",
+    stepLiftFromPlaceholder: "from object type",
+    stepLiftToPlaceholder: "to object type",
+    stepLiftQualifierPlaceholder: "lifted",
     predEventType: "event type",
     predAttr: "attribute",
     predMatches: "regex the value must match",
@@ -844,11 +861,21 @@ export const MESSAGES: Record<Lang, Messages> = {
       timeWindow: "期間で切り出す",
       keepObjectTypes: "オブジェクト型だけ残す",
       mapObjectIds: "オブジェクト id を統合（別名表）",
+      union: "別のログを合流させる",
+      keepRelatedTo: "ある型から辿れるものだけ残す",
+      liftEvents: "イベントを紐づく別の型にも付ける",
       dropObjectsWithoutEvents: "イベントのないオブジェクトを消す",
     },
     stepTypesPlaceholder: "型名をカンマ区切りで",
     stepRenamePlaceholder: "旧=新 をカンマ区切りで",
     stepAliasPlaceholder: "別名=正準id をカンマ区切りで",
+    stepObjectTypePlaceholder: "起点にするオブジェクト型",
+    stepViaLabel: "経由する型のみ通す",
+    stepNotViaLabel: "この型で止める",
+    stepUnionFilePlaceholder: "OCELファイルのパス。ログからの相対パス",
+    stepLiftFromPlaceholder: "元のオブジェクト型",
+    stepLiftToPlaceholder: "付け先のオブジェクト型",
+    stepLiftQualifierPlaceholder: "lifted",
     predEventType: "イベント型",
     predAttr: "属性名",
     predMatches: "値が一致すべき正規表現",

@@ -641,6 +641,9 @@ export type RecipeStep =
   | { timeWindow: { from?: string; to?: string } }
   | { keepObjectTypes: string[] }
   | { mapObjectIds: { aliases: Record<string, string> } }
+  | { union: { file: string } }
+  | { keepRelatedTo: { objectType: string; via?: string[]; notVia?: string[] } }
+  | { liftEvents: { from: string; to: string; eventTypes: string[]; qualifier?: string } }
   | "dropObjectsWithoutEvents";
 
 export interface Recipe {
