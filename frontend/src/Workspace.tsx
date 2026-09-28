@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import {
   fetchLogs,
   fetchSources,
+  fetchViews,
   openLog,
+  type DeclarationSetView,
   type LogsResponse,
   type SourceView,
 } from "./api.ts";
@@ -18,13 +20,16 @@ export default function WorkspacePanel({
   lang,
   modified,
   onOpened,
+  onSelectView,
 }: {
   lang: Lang;
   modified: string;
   onOpened: () => void;
+  onSelectView: (name: string) => void;
 }) {
   const [listing, setListing] = useState<LogsResponse | null>(null);
   const [sources, setSources] = useState<SourceView[] | null>(null);
+  const [views, setViews] = useState<DeclarationSetView[]>([]);
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +52,9 @@ export default function WorkspacePanel({
     const check = () => {
       fetchSources()
         .then(setSources)
+        .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+      fetchViews()
+        .then(setViews)
         .catch((err) => setError(err instanceof Error ? err.message : String(err)));
     };
     check();
@@ -85,7 +93,13 @@ export default function WorkspacePanel({
     <>
       <FileList lang={lang} listing={listing} error={error} opening={opening} onOpen={open} />
       {listing && sources ? (
-        <PipelineDag logs={listing.logs} sources={sources} onOpen={open} />
+        <PipelineDag
+          logs={listing.logs}
+          sources={sources}
+          views={views}
+          onOpen={open}
+          onSelectView={onSelectView}
+        />
       ) : null}
       <Sources sources={sources} lang={lang} act={act} />
       {listing ? (
