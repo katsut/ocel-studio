@@ -215,6 +215,12 @@ export interface Messages {
   backlogProjectsPlaceholder: string;
   pipelinePanel: string;
   pipelineHint: string;
+  pipelineStageRaw: string;
+  pipelineStageShared: string;
+  pipelineStageEvents: string;
+  pipelineStageDeclare: string;
+  pipelineStageViews: string;
+  pipelineViewHint: string;
   recipesPanel: string;
   recipesHint: string;
   recipesEmpty: string;
@@ -516,7 +522,13 @@ export const MESSAGES: Record<Lang, Messages> = {
     backlogProjectsPlaceholder: "project keys (e.g. DEMO,OPS)",
     pipelinePanel: "Pipeline",
     pipelineHint:
-      "How data flows through this workspace: sources and recipes produce files, files feed recipes. Click a file to open it.",
+      "How data flows through this workspace, in two preprocessing stages: shared decisions turn raw operation logs into business-event logs, then per-purpose declarations turn those into views. Solid transforms are machine work — people only touch the shared decisions and the per-purpose declarations. Click a file to open it, or a declaration to switch to it.",
+    pipelineStageRaw: "Operation logs",
+    pipelineStageShared: "Shared decisions",
+    pipelineStageEvents: "Business-event logs",
+    pipelineStageDeclare: "Per-purpose declarations",
+    pipelineStageViews: "Per-purpose views",
+    pipelineViewHint: "Click to switch to this declaration",
     recipesPanel: "Cleaning recipes",
     recipesHint:
       "A recipe is an ordered list of deterministic cleaning steps. Preview shows exactly what it would delete from the currently open log — nothing is written until you register it as a source and run it.",
@@ -835,7 +847,13 @@ export const MESSAGES: Record<Lang, Messages> = {
     backlogProjectsPlaceholder: "プロジェクトキー（例: DEMO,OPS）",
     pipelinePanel: "パイプライン",
     pipelineHint:
-      "このワークスペースのデータの流れ: ソースとレシピがファイルを作り、ファイルがレシピに入ります。ファイルをクリックすると開きます。",
+      "このワークスペースのデータは二段の前処理を通ります。共有の決定が操作ログを業務イベントのログに変え、目的ごとの宣言がそれを目的別ビューに変えます。実線の変換は機械の仕事で、人が触るのは共有の決定と目的ごとの宣言だけです。ファイルをクリックすると開き、宣言をクリックするとその宣言に切り替わります。",
+    pipelineStageRaw: "操作ログ",
+    pipelineStageShared: "共有の決定",
+    pipelineStageEvents: "業務イベントのログ",
+    pipelineStageDeclare: "目的ごとの宣言",
+    pipelineStageViews: "目的別ビュー",
+    pipelineViewHint: "クリックでこの宣言に切り替える",
     recipesPanel: "クリーニングレシピ",
     recipesHint:
       "レシピは決定的なクリーニング手順の並びです。プレビューで「いま開いているログから何が消えるか」を確認できます — ソース化して実行するまで何も書き込みません。",

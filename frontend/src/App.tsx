@@ -1019,6 +1019,10 @@ function Dashboard({
                   setScreen("overview");
                   void refresh(0, resolved);
                 }}
+                onSelectView={(name) => {
+                  selectView(name);
+                  setScreen("overview");
+                }}
               />
             ) : null}
           </main>

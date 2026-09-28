@@ -1279,6 +1279,29 @@ th.num {
 .dag-node.dag-file:hover .dag-file-rect {
   stroke: var(--accent);
 }
+.dag-svg .dag-stage-band {
+  fill: var(--chip);
+  fill-opacity: 0.35;
+  stroke: var(--border);
+  stroke-dasharray: 3 3;
+}
+.dag-svg .dag-stage-label {
+  fill: var(--muted);
+  font-size: 11px;
+}
+.dag-svg .dag-view-rect {
+  fill: color-mix(in srgb, var(--chip) 70%, var(--accent));
+  stroke: var(--border);
+}
+.dag-svg .dag-view-diamond {
+  fill: var(--accent);
+}
+.dag-node.dag-view {
+  cursor: pointer;
+}
+.dag-node.dag-view:hover .dag-view-rect {
+  stroke: var(--accent);
+}
 
 /* recipe editor */
 .recipe-editor {
